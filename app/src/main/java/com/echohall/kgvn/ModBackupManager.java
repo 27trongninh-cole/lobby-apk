@@ -224,10 +224,31 @@ public class ModBackupManager {
      * toàn mới mà filesystem không để lại dấu vết .nins).
      */
     public void restoreAllRobust(String gameDataRootAbsolutePath) throws IOException {
+        restoreAllRobust(gameDataRootAbsolutePath, null);
+    }
+
+    /**
+     * @param excludePathPrefix nếu khác null, mọi đường dẫn BẮT ĐẦU bằng chuỗi
+     *        này sẽ KHÔNG được restore ở đây — dùng khi 1 vùng cụ thể (vd. cả
+     *        thư mục ISPDiff) đã có cơ chế khôi phục CẤP THƯ MỤC riêng
+     *        (IspdiffFixer.restoreWhole) xử lý xong TRƯỚC khi gọi hàm này.
+     *        Nếu không loại trừ, code ở đây sẽ tưởng nhầm các file đó "vẫn
+     *        cần gỡ" (vì manifest còn ghi nhận từ các lần cài trước), rồi cố
+     *        restore lại 1 lần nữa — trong khi file lúc này đã trở về đúng
+     *        bản gốc (không có .nins nữa) nên bị hiểu nhầm thành "file mới
+     *        hoàn toàn, xoá đi" -> xoá nhầm chính bản gốc vừa khôi phục xong.
+     *        Các entry bị loại trừ cũng được dọn luôn khỏi manifest, vì
+     *        vùng đó đã "sạch" theo đúng nghĩa, không cần theo dõi tiếp.
+     */
+    public void restoreAllRobust(String gameDataRootAbsolutePath, String excludePathPrefix) throws IOException {
         Set<String> merged = new LinkedHashSet<>();
         merged.addAll(scanInstalledPathsFromFilesystem(gameDataRootAbsolutePath));
         merged.addAll(readManifest());
         for (String path : merged) {
+            if (excludePathPrefix != null && path.startsWith(excludePathPrefix)) {
+                removeTracked(path); // dọn entry lạc, tránh tích tụ mãi trong manifest
+                continue;
+            }
             restoreFile(path);
         }
     }

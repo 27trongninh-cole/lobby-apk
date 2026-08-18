@@ -155,8 +155,12 @@ public class ModInstaller {
                 listener.onStatus("Đang khôi phục ISPDiff (nếu có)...");
                 ispdiffFixer.restoreWhole(extraRoot.getAbsolutePath());
 
+                // Loại trừ hẳn ISPDiff khỏi bước khôi phục theo-từng-file bên dưới —
+                // nó vừa được khôi phục TOÀN BỘ ở dòng trên rồi, không cần (và
+                // không được) đụng lại vào từng file bên trong nữa.
+                String ispdiffAbsolutePath = new File(extraRoot, "ISPDiff").getAbsolutePath();
                 Set<String> before = backupManager.scanInstalledPathsFromFilesystem(extraRoot.getAbsolutePath());
-                backupManager.restoreAllRobust(extraRoot.getAbsolutePath());
+                backupManager.restoreAllRobust(extraRoot.getAbsolutePath(), ispdiffAbsolutePath);
 
                 // Dọn thêm các file "biết trước là do app tạo, tên cố định" —
                 // xoá thẳng, không cần kiểm tra backup vì loại này chưa từng có
