@@ -141,6 +141,19 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
+            public void onFileSkipped(String relativePath, String reason) {
+                runOnUiThread(() -> log("⚠ Bỏ qua " + relativePath + " — " + reason));
+            }
+
+            @Override
+            public void onStatus(String message) {
+                runOnUiThread(() -> {
+                    tvProgressLabel.setText(message);
+                    log("… " + message);
+                });
+            }
+
+            @Override
             public void onDone(int installedCount) {
                 runOnUiThread(() -> {
                     setBusyUi(false, null);
@@ -175,6 +188,19 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onProgress(int current, int total, String currentFileName) {
                 // uninstallAll hiện chạy gọn 1 lượt, không báo progress từng file — bỏ qua.
+            }
+
+            @Override
+            public void onFileSkipped(String relativePath, String reason) {
+                // Không dùng trong luồng gỡ mod hiện tại.
+            }
+
+            @Override
+            public void onStatus(String message) {
+                runOnUiThread(() -> {
+                    tvProgressLabel.setText(message);
+                    log("… " + message);
+                });
             }
 
             @Override

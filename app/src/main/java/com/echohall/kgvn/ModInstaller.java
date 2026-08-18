@@ -40,16 +40,27 @@ public class ModInstaller {
     public interface ProgressListener {
         /** current/total tính theo số file, để hiển thị progress bar. */
         void onProgress(int current, int total, String currentFileName);
+        /**
+         * 1 file cụ thể cài thất bại nhưng KHÔNG dừng cả tiến trình — vd. file
+         * .mp4 bị Android chặn ghi vì lý do quyền media (cần root), trong khi
+         * các file audio khác vẫn cài bình thường. reason nên đủ rõ để hiển
+         * thị thẳng cho người dùng biết cần làm gì (không chỉ "lỗi không rõ").
+         */
+        void onFileSkipped(String relativePath, String reason);
+        /** Thông báo trạng thái chung không gắn với 1 file cụ thể (vd. đang fix ISPDiff). */
+        void onStatus(String message);
         void onDone(int installedCount);
         void onError(String message);
     }
 
     private final Context appContext;
     private final ModBackupManager backupManager;
+    private final IspdiffFixer ispdiffFixer;
 
     public ModInstaller(Context context) {
         this.appContext = context.getApplicationContext();
         this.backupManager = new ModBackupManager(appContext);
+        this.ispdiffFixer = new IspdiffFixer();
     }
 
     /**
@@ -67,6 +78,14 @@ public class ModInstaller {
                     return;
                 }
 
+                // Nếu zip có đụng đến ISPDiff (video), fix 1 lần trước khi cài —
+                // idempotent, tự bỏ qua nếu đã fix từ lượt cài trước đó.
+                boolean touchesIspdiff = files.stream()
+                        .anyMatch(f -> extractDir.toPath().relativize(f.toPath()).toString().contains("/ISPDiff/"));
+                if (touchesIspdiff) {
+                    ispdiffFixer.ensureFixed(gameExtraRootPath(), listener::onStatus);
+                }
+
                 int total = files.size();
                 int done = 0;
                 for (File f : files) {
@@ -74,8 +93,20 @@ public class ModInstaller {
                     String targetPath = buildTargetPath(relativePath);
 
                     listener.onProgress(done, total, relativePath);
-                    backupManager.installFile(f, targetPath);
-                    done++;
+                    try {
+                        backupManager.installFile(f, targetPath);
+                        done++;
+                    } catch (IOException fileError) {
+                        // KHÔNG dừng cả lượt cài vì 1 file thất bại — ví dụ file
+                        // media (.mp4/.jpg/...) bị Android chặn ghi khi chưa có
+                        // root, trong khi các file khác (âm thanh) vẫn hợp lệ.
+                        String reason = fileError.getMessage() != null ? fileError.getMessage() : fileError.toString();
+                        if (looksLikePermissionDenied(reason) && isLikelyMediaFile(relativePath)) {
+                            reason = "Bị Android chặn ghi vì đây là file media (ảnh/video) — cần quyền ROOT "
+                                    + "(Shizuku ở chế độ Root) mới ghi được, quyền Shizuku thường (ADB) không đủ. Chi tiết: " + reason;
+                        }
+                        listener.onFileSkipped(relativePath, reason);
+                    }
                 }
 
                 // Dọn thư mục giải nén tạm trong external cache — file mod thật
@@ -107,6 +138,15 @@ public class ModInstaller {
                         android.os.Environment.getExternalStorageDirectory(),
                         "Android/data/" + GAME_PACKAGE);
                 File extraRoot = new File(gamePackageDataDir, "files/" + GAME_DATA_SUBPATH);
+
+                // Khôi phục ISPDiff (nếu đã từng fix) TRƯỚC — xoá sạch bản hiện
+                // tại (dù đã mod bao nhiêu lần), đổi backup toàn vẹn trở lại.
+                // Rename tức thời, không phụ thuộc dung lượng vài GB bên trong.
+                // Làm bước này trước để sau khi quét *.nins ở dưới, thư mục
+                // ISPDiff đã sạch, không còn gì để đụng vào nữa (tự nhiên đúng,
+                // không cần loại trừ đường dẫn thủ công).
+                listener.onStatus("Đang khôi phục ISPDiff (nếu có)...");
+                ispdiffFixer.restoreWhole(extraRoot.getAbsolutePath());
 
                 Set<String> before = backupManager.scanInstalledPathsFromFilesystem(gamePackageDataDir.getAbsolutePath());
                 backupManager.restoreAllRobust(gamePackageDataDir.getAbsolutePath());
@@ -174,6 +214,13 @@ public class ModInstaller {
         }
     }
 
+    private String gameExtraRootPath() {
+        File androidData = new File(
+                android.os.Environment.getExternalStorageDirectory(),
+                "Android/data/" + GAME_PACKAGE + "/files/" + GAME_DATA_SUBPATH);
+        return androidData.getAbsolutePath();
+    }
+
     private String buildTargetPath(String relativePathInZip) {
         // Xác nhận từ zip mod thật: gốc zip = "com.garena.game.kgvn/files/Extra/2022.V3/..."
         // tức đã bao gồm sẵn "<package>/files/..." — chỉ cần ghép thẳng vào
@@ -182,6 +229,19 @@ public class ModInstaller {
         File androidDataRoot = new File(
                 android.os.Environment.getExternalStorageDirectory(), "Android/data");
         return new File(androidDataRoot, relativePathInZip).getAbsolutePath();
+    }
+
+    private static boolean looksLikePermissionDenied(String reason) {
+        return reason != null && reason.toLowerCase().contains("permission denied");
+    }
+
+    private static boolean isLikelyMediaFile(String relativePath) {
+        String lower = relativePath.toLowerCase();
+        return lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".mkv")
+                || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")
+                || lower.endsWith(".webm") || lower.endsWith(".3gp");
+        // Cố ý KHÔNG liệt .wem/.bnk vào đây — đó là định dạng riêng của Wwise,
+        // Android không nhận diện là media nên không bị chặn theo cơ chế này.
     }
 
     private static void deleteRecursive(File f) {
