@@ -63,8 +63,30 @@ public class ModBackupManager {
      *        2022.V3/Sound_DLC/Android/xxx.wem
      */
     public void installFile(File sourceFileInExternalCache, String targetAbsolutePath) throws IOException {
+        installFile(sourceFileInExternalCache, targetAbsolutePath, false);
+    }
+
+    /**
+     * @param noBackupNeeded true nếu targetAbsolutePath được BIẾT TRƯỚC là
+     *        tên cố định do app tự tạo (vd. "30082005.wem") — game KHÔNG
+     *        BAO GIỜ có file gốc ở vị trí này, nên dù nó đang tồn tại (từ
+     *        lần cài mod trước), cũng KHÔNG được rename thành backup — chỉ
+     *        đơn giản ghi đè trực tiếp. Không truyền cờ này thì code sẽ tưởng
+     *        nhầm "file đang tồn tại" = "file gốc của game cần giữ lại",
+     *        tạo ra 1 bản .nins vô nghĩa (không có gốc thật nào đằng sau nó).
+     */
+    public void installFile(File sourceFileInExternalCache, String targetAbsolutePath, boolean noBackupNeeded) throws IOException {
         if (!sourceFileInExternalCache.exists()) {
             throw new IOException("File nguồn không tồn tại: " + sourceFileInExternalCache);
+        }
+
+        if (noBackupNeeded) {
+            // Ghi đè thẳng, không kiểm tra/tạo .nins gì cả — kể cả nếu file đã
+            // tồn tại từ lần cài mod trước, đó vẫn không phải "bản gốc của game".
+            ShizukuShell.execOrThrow(new String[]{"rm", "-f", targetAbsolutePath});
+            ShizukuShell.execOrThrow(new String[]{
+                    "cp", sourceFileInExternalCache.getAbsolutePath(), targetAbsolutePath});
+            return;
         }
 
         String backupPath = targetAbsolutePath + BACKUP_SUFFIX;
@@ -163,8 +185,16 @@ public class ModBackupManager {
      */
     public Set<String> scanInstalledPathsFromFilesystem(String gameDataRootAbsolutePath) throws IOException {
         Set<String> result = new LinkedHashSet<>();
-        ShizukuShell.Result r = ShizukuShell.execOrThrow(new String[]{
-                "find", gameDataRootAbsolutePath, "-name", "*" + BACKUP_SUFFIX});
+        // Dùng exec() (không throw khi exit code != 0) vì find trả về exit
+        // code khác 0 nếu gặp Permission denied ở BẤT KỲ thư mục con nào nó
+        // duyệt qua — kể cả khi những thư mục đó không liên quan gì đến mod
+        // (vd. Resources/1.63.1/... nếu lỡ quét rộng hơn phạm vi cần thiết).
+        // exit code khác 0 ở đây chỉ có nghĩa "có vài nhánh không đọc được",
+        // KHÔNG có nghĩa "toàn bộ lệnh thất bại" — vẫn dùng được phần stdout
+        // đã thu thập từ các nhánh đọc được. 2>/dev/null để log gọn, không
+        // in tràn lan các dòng "Permission denied" không cần thiết.
+        ShizukuShell.Result r = execTolerant(new String[]{"sh", "-c",
+                "find " + shellQuote(gameDataRootAbsolutePath) + " -name '*" + BACKUP_SUFFIX + "' 2>/dev/null"});
         for (String line : r.stdout.split("\n")) {
             String trimmed = line.trim();
             if (trimmed.isEmpty()) continue;
@@ -172,6 +202,20 @@ public class ModBackupManager {
             result.add(trimmed.substring(0, trimmed.length() - BACKUP_SUFFIX.length()));
         }
         return result;
+    }
+
+    /**
+     * exec() ném IOException nếu bản thân lệnh KHÔNG chạy được (vd. Shizuku
+     * mất kết nối) — khác với exit code khác 0 do find gặp lỗi cục bộ (case
+     * đó đã được xử lý ở trên bằng cách không dùng execOrThrow). Overload
+     * riêng ở đây để phân biệt rõ 2 loại thất bại.
+     */
+    private static ShizukuShell.Result execTolerant(String[] cmd) throws IOException {
+        try {
+            return ShizukuShell.exec(cmd);
+        } catch (Exception e) {
+            throw new IOException("Không thể chạy lệnh qua Shizuku: " + e.getMessage(), e);
+        }
     }
 
     /**

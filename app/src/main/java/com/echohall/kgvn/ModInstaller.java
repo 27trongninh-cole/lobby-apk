@@ -67,6 +67,22 @@ public class ModInstaller {
      * @param zipUri Uri của file zip mod, lấy từ Storage Access Framework
      *               (người dùng chọn file đã tải từ web) hoặc từ Intent nhận file.
      */
+    // File "hoàn toàn mới" (game vốn không có) mà web LUÔN tạo với đúng tên cố
+    // định này — xác nhận từ cấu trúc zip mod thật. Dùng CHUNG cho cả bước
+    // CÀI (bỏ qua backup, ghi đè thẳng — kể cả khi đã tồn tại từ lần cài
+    // trước) và bước GỠ (xoá thẳng, không cần tìm backup) — 1 nguồn duy nhất
+    // để 2 nơi không lệch nhau.
+    private static final String[] KNOWN_APP_CREATED_RELATIVE_PATHS = {
+            "Sound_DLC/Android/30082005.wem"
+    };
+
+    private static boolean isKnownAppCreatedFile(String relativePathInZip) {
+        for (String known : KNOWN_APP_CREATED_RELATIVE_PATHS) {
+            if (relativePathInZip.endsWith(known)) return true;
+        }
+        return false;
+    }
+
     public void installFromZip(Uri zipUri, ProgressListener listener) {
         new Thread(() -> {
             try {
@@ -91,10 +107,11 @@ public class ModInstaller {
                 for (File f : files) {
                     String relativePath = extractDir.toPath().relativize(f.toPath()).toString();
                     String targetPath = buildTargetPath(relativePath);
+                    boolean noBackupNeeded = isKnownAppCreatedFile(relativePath);
 
                     listener.onProgress(done, total, relativePath);
                     try {
-                        backupManager.installFile(f, targetPath);
+                        backupManager.installFile(f, targetPath, noBackupNeeded);
                         done++;
                     } catch (IOException fileError) {
                         // KHÔNG dừng cả lượt cài vì 1 file thất bại — ví dụ file
@@ -120,16 +137,6 @@ public class ModInstaller {
         }).start();
     }
 
-    // File "hoàn toàn mới" (game vốn không có) mà web LUÔN tạo với đúng tên cố
-    // định này — xác nhận từ cấu trúc zip mod thật. Vì tên cố định và biết
-    // trước, có thể nhận diện & dọn dẹp nó khi gỡ mod MÀ KHÔNG cần dựa vào
-    // manifest hay bất kỳ file .echohall_bak nào (nó vốn không có backup,
-    // vì trước khi cài, game chưa từng có file này) — khắc phục đúng khoảng
-    // trống đã nói ở lượt trước cho trường hợp cụ thể này.
-    private static final String[] KNOWN_APP_CREATED_RELATIVE_PATHS = {
-            "Sound_DLC/Android/30082005.wem"
-    };
-
     /** Gỡ toàn bộ mod đã cài — chạy nền, báo kết quả qua listener đơn giản. */
     public void uninstallAll(ProgressListener listener) {
         new Thread(() -> {
@@ -148,8 +155,8 @@ public class ModInstaller {
                 listener.onStatus("Đang khôi phục ISPDiff (nếu có)...");
                 ispdiffFixer.restoreWhole(extraRoot.getAbsolutePath());
 
-                Set<String> before = backupManager.scanInstalledPathsFromFilesystem(gamePackageDataDir.getAbsolutePath());
-                backupManager.restoreAllRobust(gamePackageDataDir.getAbsolutePath());
+                Set<String> before = backupManager.scanInstalledPathsFromFilesystem(extraRoot.getAbsolutePath());
+                backupManager.restoreAllRobust(extraRoot.getAbsolutePath());
 
                 // Dọn thêm các file "biết trước là do app tạo, tên cố định" —
                 // xoá thẳng, không cần kiểm tra backup vì loại này chưa từng có
@@ -164,6 +171,16 @@ public class ModInstaller {
                     if (exists) {
                         ShizukuShell.execOrThrow(new String[]{"rm", "-f", path});
                         extraRemoved++;
+                    }
+                    // Dọn luôn ".nins lạc" nếu máy đã dính bug ở bản cũ (trước khi
+                    // installFile có tham số noBackupNeeded) — an toàn để xoá vì
+                    // file này chưa từng có bản gốc thật đứng sau nó.
+                    String strayBackup = path + ".nins";
+                    boolean strayExists = ShizukuShell.execOrThrow(new String[]{"sh", "-c",
+                            "[ -e '" + strayBackup.replace("'", "'\\''") + "' ] && echo yes || echo no"})
+                            .stdout.trim().equals("yes");
+                    if (strayExists) {
+                        ShizukuShell.execOrThrow(new String[]{"rm", "-f", strayBackup});
                     }
                 }
 
