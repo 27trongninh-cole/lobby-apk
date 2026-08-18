@@ -1,12 +1,10 @@
 package com.echohall.kgvn;
 
-import android.app.Activity;
-import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.format.DateFormat;
 import android.view.View;
-import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -19,29 +17,34 @@ import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
+    private TextView tvShizukuDot;
     private TextView tvShizukuStatus;
     private TextView tvSelectedFile;
     private TextView tvLog;
     private TextView tvProgressLabel;
+    private TextView tvHandleLogLabel;
+    private TextView tvRequestPermissionTitle;
+    private TextView tvRequestPermissionSubtitle;
     private ProgressBar progressBar;
-    private Button btnRequestPermission;
-    private Button btnPickZip;
-    private Button btnInstall;
-    private Button btnUninstallAll;
+    private LinearLayout btnRequestPermission;
+    private LinearLayout btnPickZip;
+    private LinearLayout btnInstall;
+    private LinearLayout btnUninstallAll;
+    private LinearLayout handleBarLog;
+    private LinearLayout layoutLog;
 
     private ShizukuPermissionHelper shizukuHelper;
     private ModInstaller modInstaller;
 
     private Uri selectedZipUri;
     private ShizukuPermissionHelper.State currentShizukuState = ShizukuPermissionHelper.State.BINDER_NOT_AVAILABLE;
+    private boolean logExpanded = false;
 
     private final ActivityResultLauncher<String[]> pickZipLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
                 if (uri == null) return;
-                // Giữ quyền đọc uri này lâu dài trong phiên (không bắt buộc phải
-                // persistable vì mình đọc ngay, không cần giữ qua lần khởi động app).
                 selectedZipUri = uri;
-                tvSelectedFile.setText("Đã chọn: " + uri.getLastPathSegment());
+                tvSelectedFile.setText(uri.getLastPathSegment());
                 updateInstallButtonEnabled();
             });
 
@@ -50,24 +53,30 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        tvShizukuDot = findViewById(R.id.tvShizukuDot);
         tvShizukuStatus = findViewById(R.id.tvShizukuStatus);
         tvSelectedFile = findViewById(R.id.tvSelectedFile);
         tvLog = findViewById(R.id.tvLog);
         tvProgressLabel = findViewById(R.id.tvProgressLabel);
+        tvHandleLogLabel = findViewById(R.id.tvHandleLogLabel);
+        tvRequestPermissionTitle = findViewById(R.id.tvRequestPermissionTitle);
+        tvRequestPermissionSubtitle = findViewById(R.id.tvRequestPermissionSubtitle);
         progressBar = findViewById(R.id.progressBar);
         btnRequestPermission = findViewById(R.id.btnRequestPermission);
         btnPickZip = findViewById(R.id.btnPickZip);
         btnInstall = findViewById(R.id.btnInstall);
         btnUninstallAll = findViewById(R.id.btnUninstallAll);
+        handleBarLog = findViewById(R.id.handleBarLog);
+        layoutLog = findViewById(R.id.layoutLog);
 
         modInstaller = new ModInstaller(this);
-
         shizukuHelper = new ShizukuPermissionHelper(this, this::onShizukuStateChanged);
 
         btnRequestPermission.setOnClickListener(v -> shizukuHelper.requestPermission());
         btnPickZip.setOnClickListener(v -> pickZipLauncher.launch(new String[]{"application/zip", "application/octet-stream"}));
         btnInstall.setOnClickListener(v -> onInstallClicked());
         btnUninstallAll.setOnClickListener(v -> onUninstallAllClicked());
+        handleBarLog.setOnClickListener(v -> toggleLog());
 
         shizukuHelper.checkAndNotify();
     }
@@ -92,26 +101,34 @@ public class MainActivity extends AppCompatActivity {
         currentShizukuState = state;
         switch (state) {
             case BINDER_NOT_AVAILABLE:
-                tvShizukuStatus.setText("Trạng thái Shizuku: CHƯA sẵn sàng — mở app Shizuku và khởi động service trước (qua ADB hoặc root), rồi quay lại đây.");
-                btnRequestPermission.setEnabled(true);
-                btnRequestPermission.setText("Kiểm tra lại Shizuku");
+                tvShizukuDot.setTextColor(0xFF888888); // xám — chưa kết nối
+                tvShizukuStatus.setText("Chưa sẵn sàng");
+                tvRequestPermissionTitle.setText("Kiểm tra lại Shizuku");
+                tvRequestPermissionSubtitle.setText("Mở app Shizuku, khởi động service rồi quay lại");
                 break;
             case PERMISSION_DENIED:
-                tvShizukuStatus.setText("Trạng thái Shizuku: đã kết nối nhưng CHƯA cấp quyền cho app này.");
-                btnRequestPermission.setEnabled(true);
-                btnRequestPermission.setText("Xin quyền Shizuku");
+                tvShizukuDot.setTextColor(0xFFe9c846); // vàng — kết nối nhưng chưa cấp quyền
+                tvShizukuStatus.setText("Chưa cấp quyền");
+                tvRequestPermissionTitle.setText("Xin quyền Shizuku");
+                tvRequestPermissionSubtitle.setText("Cần cấp quyền trước khi cài mod");
                 break;
             case GRANTED:
-                tvShizukuStatus.setText("Trạng thái Shizuku: ĐÃ sẵn sàng ✓");
-                btnRequestPermission.setEnabled(false);
-                btnRequestPermission.setText("Đã cấp quyền");
+                tvShizukuDot.setTextColor(0xFF4caf50); // xanh — sẵn sàng
+                tvShizukuStatus.setText("Đã sẵn sàng ✓");
+                tvRequestPermissionTitle.setText("Đã cấp quyền");
+                tvRequestPermissionSubtitle.setText("Có thể cài mod ngay");
                 break;
         }
+        // CardView cha của btnRequestPermission — làm mờ đi khi đã xong, không
+        // cần chiếm sự chú ý nữa (nhưng vẫn bấm được để kiểm tra lại nếu cần).
+        ((View) btnRequestPermission.getParent()).setAlpha(state == ShizukuPermissionHelper.State.GRANTED ? 0.6f : 1f);
         updateInstallButtonEnabled();
     }
 
     private void updateInstallButtonEnabled() {
-        btnInstall.setEnabled(selectedZipUri != null && currentShizukuState == ShizukuPermissionHelper.State.GRANTED);
+        boolean enabled = selectedZipUri != null && currentShizukuState == ShizukuPermissionHelper.State.GRANTED;
+        btnInstall.setEnabled(enabled);
+        btnInstall.setAlpha(enabled ? 1f : 0.5f);
     }
 
     // ─────────────────────────── Install flow ───────────────────────────
@@ -226,7 +243,9 @@ public class MainActivity extends AppCompatActivity {
     // ─────────────────────────── UI helpers ───────────────────────────
 
     private void setBusyUi(boolean busy, String initialLabel) {
-        btnInstall.setEnabled(!busy && selectedZipUri != null && currentShizukuState == ShizukuPermissionHelper.State.GRANTED);
+        boolean canInstall = !busy && selectedZipUri != null && currentShizukuState == ShizukuPermissionHelper.State.GRANTED;
+        btnInstall.setEnabled(canInstall);
+        btnInstall.setAlpha(canInstall ? 1f : 0.5f);
         btnUninstallAll.setEnabled(!busy);
         btnPickZip.setEnabled(!busy);
         progressBar.setVisibility(busy ? View.VISIBLE : View.GONE);
@@ -234,7 +253,20 @@ public class MainActivity extends AppCompatActivity {
         if (busy) {
             progressBar.setProgress(0);
             tvProgressLabel.setText(initialLabel == null ? "" : initialLabel);
+            // Tự mở log khi đang chạy 1 thao tác — người test cần thấy ngay,
+            // không phải nhớ bấm mở mỗi lần.
+            setLogExpanded(true);
         }
+    }
+
+    private void toggleLog() {
+        setLogExpanded(!logExpanded);
+    }
+
+    private void setLogExpanded(boolean expanded) {
+        logExpanded = expanded;
+        layoutLog.setVisibility(expanded ? View.VISIBLE : View.GONE);
+        tvHandleLogLabel.setText(expanded ? "🧾 Ẩn log debug" : "🧾 Xem log debug");
     }
 
     private void log(String message) {
