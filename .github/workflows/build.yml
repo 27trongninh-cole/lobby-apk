@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main, master ]
 
+permissions:
+  contents: write   # cần để job release tạo GitHub Release + upload file đính kèm
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,9 +42,34 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
+      # Đổi tên file .apk gốc (thường dạng app-debug.apk) thành tên hiển thị
+      # mong muốn — chỉ đổi TÊN FILE, không đổi android:label trong app (label
+      # trong app vẫn đang là "Echohall Installer" trừ khi bạn tự sửa AndroidManifest).
+      - name: Rename APK to "Melo Ninstaller.apk"
+        run: |
+          mkdir -p release-out
+          src=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          if [ -z "$src" ]; then echo "Không tìm thấy file .apk sau khi build"; exit 1; fi
+          cp "$src" "release-out/Melo Ninstaller.apk"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: echohall-installer-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: melo-ninstaller-apk
+          path: release-out/Melo Ninstaller.apk
           if-no-files-found: error
+
+      # Tự tạo 1 GitHub Release mới cho mỗi lần build, đính kèm file .apk để
+      # tải trực tiếp từ tab Releases (không cần vào Actions > Artifacts).
+      # Bản debug key (chưa ký release) — nếu sau này có keystore riêng, thêm
+      # bước ký (jarsigner/apksigner) trước bước này rồi release bản đã ký.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "Melo Ninstaller build #${{ github.run_number }}"
+          body: |
+            Build tự động từ commit ${{ github.sha }}.
+            Bản debug key — chưa ký release, chỉ dùng để test.
+          files: release-out/Melo Ninstaller.apk
+

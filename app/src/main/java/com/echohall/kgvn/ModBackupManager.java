@@ -89,8 +89,17 @@ public class ModBackupManager {
             if (targetExists) {
                 // File đích hiện tại chưa từng có backup -> đây là file gốc
                 // thật của game. Rename tức thời, không phụ thuộc dung lượng.
-                ShizukuShell.execOrThrow(new String[]{
-                        "mv", targetAbsolutePath, backupPath});
+                try {
+                    ShizukuShell.execOrThrow(new String[]{
+                            "mv", targetAbsolutePath, backupPath});
+                } catch (IOException mvError) {
+                    // Thất bại (vd. "Permission denied") -> thu thập thông tin
+                    // chẩn đoán ngay lập tức thay vì chỉ báo lỗi suông, để lần
+                    // test sau biết chính xác nguyên nhân (quyền thư mục, chủ
+                    // sở hữu file, SELinux context...) chứ không phải đoán mù.
+                    String diagnostic = collectDiagnostic(targetAbsolutePath);
+                    throw new IOException(mvError.getMessage() + "\n[Chẩn đoán]\n" + diagnostic, mvError);
+                }
             }
             // Nếu target chưa từng tồn tại (file hoàn toàn mới), không có gì
             // để backup — lúc restore sẽ hiểu là "xoá file mod đi".
@@ -235,5 +244,31 @@ public class ModBackupManager {
 
     private static String shellQuote(String path) {
         return "'" + path.replace("'", "'\\''") + "'";
+    }
+
+    /**
+     * Thu thập thông tin chẩn đoán khi mv/rm thất bại vì quyền: liệt kê thư
+     * mục cha (xem quyền/chủ sở hữu file đích so với các file khác đã cài
+     * thành công trong cùng lượt), và "stat" chi tiết file đích (bao gồm
+     * SELinux context nếu toolbox/busybox hỗ trợ -Z).
+     */
+    private static String collectDiagnostic(String targetAbsolutePath) {
+        StringBuilder sb = new StringBuilder();
+        String parentDir = new File(targetAbsolutePath).getParent();
+        try {
+            ShizukuShell.Result lsDir = ShizukuShell.exec(new String[]{"sh", "-c",
+                    "ls -laZ " + shellQuote(parentDir) + " 2>&1 || ls -la " + shellQuote(parentDir) + " 2>&1"});
+            sb.append("ls thư mục cha (").append(parentDir).append("):\n").append(lsDir.stdout);
+
+            ShizukuShell.Result statFile = ShizukuShell.exec(new String[]{"sh", "-c",
+                    "stat " + shellQuote(targetAbsolutePath) + " 2>&1"});
+            sb.append("stat file đích:\n").append(statFile.stdout);
+
+            ShizukuShell.Result whoami = ShizukuShell.exec(new String[]{"sh", "-c", "id 2>&1"});
+            sb.append("uid tiến trình Shizuku đang chạy lệnh:\n").append(whoami.stdout);
+        } catch (Exception e) {
+            sb.append("(không thu thập được chẩn đoán: ").append(e.getMessage()).append(")");
+        }
+        return sb.toString();
     }
 }
