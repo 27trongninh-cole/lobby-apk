@@ -1,23 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Shizuku hoạt động qua Binder, không cần khai quyền hệ thống đặc biệt
+         ở đây — quyền thật được Shizuku cấp lúc runtime qua chính app Shizuku. -->
+
+    <!-- Dự phòng cho thiết bị Android cũ hơn / các thao tác đọc file zip qua
+         SAF không cần các quyền này, nhưng khai để tương thích rộng, không hại gì. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 
     <application
-        android:allowBackup="true"
-        android:label="AOV Map Mod"
+        android:allowBackup="false"
         android:icon="@android:drawable/sym_def_app_icon"
-        android:theme="@style/Theme.AOVMapMod"
-        android:largeHeap="true">
+        android:label="Echohall Installer"
+        android:theme="@style/Theme.Echohall">
 
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:theme="@style/Theme.AOVMapMod">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-    </application>
 
+        <!-- Bắt buộc phải có provider này để Shizuku tìm thấy app khi liệt kê
+             danh sách app được quản lý / nhận sự kiện binder. -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+    </application>
 </manifest>

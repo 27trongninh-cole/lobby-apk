@@ -1,0 +1,201 @@
+package com.echohall.kgvn;
+
+import android.content.Context;
+import android.net.Uri;
+
+import net.lingala.zip4j.ZipFile;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * Nhận file zip mod (đã tải sẵn từ web), giải nén, rồi cài từng file vào
+ * đúng vị trí — KHÔNG cần biết trước danh sách file, tự suy ra từ chính
+ * cấu trúc thư mục có trong zip.
+ *
+ * QUY ƯỚC (phải khớp với cách web đóng gói zip):
+ *   gốc của zip  ==  Extra/2022.V3/  trong thư mục data của game.
+ *   Ví dụ: zip có "Sound_DLC/Android/xxx.wem"
+ *       -> cài vào ".../files/Extra/2022.V3/Sound_DLC/Android/xxx.wem"
+ *
+ * Nếu sau này web đổi mốc gốc (vd. version game đổi từ 2022.V3 sang khác),
+ * CHỈ cần đổi hằng số GAME_DATA_SUBPATH bên dưới — không cần đổi gì khác
+ * trong luồng cài đặt.
+ */
+public class ModInstaller {
+
+    private static final String GAME_PACKAGE = "com.garena.game.kgvn";
+    // Phần cố định giữa "files" và gốc zip. Đổi ở đây nếu game update path.
+    private static final String GAME_DATA_SUBPATH = "Extra/2022.V3";
+
+    public interface ProgressListener {
+        /** current/total tính theo số file, để hiển thị progress bar. */
+        void onProgress(int current, int total, String currentFileName);
+        void onDone(int installedCount);
+        void onError(String message);
+    }
+
+    private final Context appContext;
+    private final ModBackupManager backupManager;
+
+    public ModInstaller(Context context) {
+        this.appContext = context.getApplicationContext();
+        this.backupManager = new ModBackupManager(appContext);
+    }
+
+    /**
+     * @param zipUri Uri của file zip mod, lấy từ Storage Access Framework
+     *               (người dùng chọn file đã tải từ web) hoặc từ Intent nhận file.
+     */
+    public void installFromZip(Uri zipUri, ProgressListener listener) {
+        new Thread(() -> {
+            try {
+                File extractDir = extractZipToExternalCache(zipUri);
+                List<File> files = listAllFiles(extractDir);
+
+                if (files.isEmpty()) {
+                    listener.onError("Zip không chứa file nào — kiểm tra lại file mod đã tải.");
+                    return;
+                }
+
+                int total = files.size();
+                int done = 0;
+                for (File f : files) {
+                    String relativePath = extractDir.toPath().relativize(f.toPath()).toString();
+                    String targetPath = buildTargetPath(relativePath);
+
+                    listener.onProgress(done, total, relativePath);
+                    backupManager.installFile(f, targetPath);
+                    done++;
+                }
+
+                // Dọn thư mục giải nén tạm trong external cache — file mod thật
+                // giờ đã nằm trong thư mục game, không cần giữ bản sao ở đây nữa.
+                deleteRecursive(extractDir);
+
+                listener.onDone(done);
+            } catch (Exception e) {
+                listener.onError(describeError(e));
+            }
+        }).start();
+    }
+
+    // File "hoàn toàn mới" (game vốn không có) mà web LUÔN tạo với đúng tên cố
+    // định này — xác nhận từ cấu trúc zip mod thật. Vì tên cố định và biết
+    // trước, có thể nhận diện & dọn dẹp nó khi gỡ mod MÀ KHÔNG cần dựa vào
+    // manifest hay bất kỳ file .echohall_bak nào (nó vốn không có backup,
+    // vì trước khi cài, game chưa từng có file này) — khắc phục đúng khoảng
+    // trống đã nói ở lượt trước cho trường hợp cụ thể này.
+    private static final String[] KNOWN_APP_CREATED_RELATIVE_PATHS = {
+            "Sound_DLC/Android/30082005.wem"
+    };
+
+    /** Gỡ toàn bộ mod đã cài — chạy nền, báo kết quả qua listener đơn giản. */
+    public void uninstallAll(ProgressListener listener) {
+        new Thread(() -> {
+            try {
+                File gamePackageDataDir = new File(
+                        android.os.Environment.getExternalStorageDirectory(),
+                        "Android/data/" + GAME_PACKAGE);
+                File extraRoot = new File(gamePackageDataDir, "files/" + GAME_DATA_SUBPATH);
+
+                Set<String> before = backupManager.scanInstalledPathsFromFilesystem(gamePackageDataDir.getAbsolutePath());
+                backupManager.restoreAllRobust(gamePackageDataDir.getAbsolutePath());
+
+                // Dọn thêm các file "biết trước là do app tạo, tên cố định" —
+                // xoá thẳng, không cần kiểm tra backup vì loại này chưa từng có
+                // bản gốc để khôi phục.
+                int extraRemoved = 0;
+                for (String knownRelative : KNOWN_APP_CREATED_RELATIVE_PATHS) {
+                    File f = new File(extraRoot, knownRelative);
+                    String path = f.getAbsolutePath();
+                    boolean exists = ShizukuShell.execOrThrow(new String[]{"sh", "-c",
+                            "[ -e '" + path.replace("'", "'\\''") + "' ] && echo yes || echo no"})
+                            .stdout.trim().equals("yes");
+                    if (exists) {
+                        ShizukuShell.execOrThrow(new String[]{"rm", "-f", path});
+                        extraRemoved++;
+                    }
+                }
+
+                listener.onDone(before.size() + extraRemoved);
+            } catch (Exception e) {
+                listener.onError(describeError(e));
+            }
+        }).start();
+    }
+
+    // ─────────────────────────── helpers ───────────────────────────
+
+    private File extractZipToExternalCache(Uri zipUri) throws IOException {
+        File externalCache = appContext.getExternalCacheDir();
+        if (externalCache == null) {
+            throw new IOException("Không truy cập được external cache — kiểm tra thẻ nhớ/quyền lưu trữ.");
+        }
+
+        File zipCopy = new File(externalCache, "incoming_mod.zip");
+        try (InputStream in = appContext.getContentResolver().openInputStream(zipUri);
+             FileOutputStream out = new FileOutputStream(zipCopy)) {
+            if (in == null) throw new IOException("Không đọc được file zip đã chọn.");
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+        }
+
+        File extractDir = new File(externalCache, "mod_extract");
+        deleteRecursive(extractDir); // dọn sạch lần cài trước nếu còn sót
+        extractDir.mkdirs();
+
+        try (ZipFile zipFile = new ZipFile(zipCopy)) {
+            zipFile.extractAll(extractDir.getAbsolutePath());
+        } catch (Exception e) {
+            throw new IOException("Giải nén zip thất bại: " + e.getMessage(), e);
+        } finally {
+            zipCopy.delete();
+        }
+
+        return extractDir;
+    }
+
+    private static List<File> listAllFiles(File dir) throws IOException {
+        try (Stream<Path> walk = Files.walk(dir.toPath())) {
+            return walk.filter(Files::isRegularFile)
+                    .map(Path::toFile)
+                    .collect(Collectors.toCollection(ArrayList::new));
+        }
+    }
+
+    private String buildTargetPath(String relativePathInZip) {
+        // Xác nhận từ zip mod thật: gốc zip = "com.garena.game.kgvn/files/Extra/2022.V3/..."
+        // tức đã bao gồm sẵn "<package>/files/..." — chỉ cần ghép thẳng vào
+        // sau "Android/data/", không cần tự chèn thêm GAME_PACKAGE hay
+        // GAME_DATA_SUBPATH nữa (hằng số cũ giữ lại chỉ để tham chiếu/log).
+        File androidDataRoot = new File(
+                android.os.Environment.getExternalStorageDirectory(), "Android/data");
+        return new File(androidDataRoot, relativePathInZip).getAbsolutePath();
+    }
+
+    private static void deleteRecursive(File f) {
+        if (f == null || !f.exists()) return;
+        if (f.isDirectory()) {
+            File[] children = f.listFiles();
+            if (children != null) {
+                for (File c : children) deleteRecursive(c);
+            }
+        }
+        f.delete();
+    }
+
+    private static String describeError(Exception e) {
+        return e.getMessage() != null ? e.getMessage() : e.toString();
+    }
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+<script src="wemogg.js"></script>
+<script>
+// Cầu nối JS <-> Android. WebView này KHÔNG hiển thị UI, chỉ dùng làm
+// "máy giải mã": nhận bytes .wem (base64) từ native, trả về bytes .ogg
+// (base64) qua AndroidBridge.onOggReady(). Mọi lỗi báo qua onError().
+//
+// Lưu ý: WemOgg là IIFE global (const WemOgg = (function(){...})()) —
+// hàm convert cụ thể export ra sao tuỳ theo cuối file wemogg.js, kiểm tra
+// lại tên hàm thật (vd WemOgg.convert / WemOgg.wemToOgg) trước khi build,
+// vì mình chỉ thấy phần đầu file (parseWemHeader) trong lúc soạn khung này.
+
+function base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+// Gọi từ Android: webView.evaluateJavascript("decodeWemBase64('" + b64 + "')", null)
+// API thật (xác nhận từ cuối wemogg.js): window.wemToOgg(wemBytes: Uint8Array,
+// codebookLibBytes?: Uint8Array, opts?) -> Uint8Array. Codebook chuẩn aoTuV 6.03
+// đã nhúng sẵn trong file (biến CODEBOOK_B64/window.WEMOGG_CODEBOOK), nên không
+// cần truyền codebookLibBytes — bỏ trống/undefined là dùng mặc định.
+function decodeWemBase64(wemBase64) {
+  try {
+    const wemBuf = base64ToArrayBuffer(wemBase64);
+    const wemBytes = new Uint8Array(wemBuf);
+    const oggBytes = window.wemToOgg(wemBytes); // dùng codebook mặc định đã nhúng
+    const oggBase64 = arrayBufferToBase64(oggBytes.buffer);
+    if (window.AndroidBridge) AndroidBridge.onOggReady(oggBase64);
+  } catch (err) {
+    if (window.AndroidBridge) AndroidBridge.onError(String(err && err.message ? err.message : err));
+  }
+}
+</script>
+</body>
+</html>
