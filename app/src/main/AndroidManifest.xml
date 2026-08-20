@@ -25,18 +25,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Bản UI thứ 2 (phong cách web) — chỉ để SO SÁNH, xoá entry này +
-             MainActivityWebStyle.java sau khi chọn được phong cách ưng ý. -->
-        <activity
-            android:name=".MainActivityWebStyle"
-            android:label="Melo Ninstaller (Web style)"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
         <!-- Bắt buộc phải có provider này để Shizuku tìm thấy app khi liệt kê
              danh sách app được quản lý / nhận sự kiện binder. -->
         <provider

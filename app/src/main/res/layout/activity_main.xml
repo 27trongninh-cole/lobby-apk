@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1a1a2e">
+    android:background="#060b12">
 
 <ScrollView
     android:layout_width="match_parent"
@@ -14,112 +13,95 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="24dp">
 
-        <!-- Header -->
+        <!-- Badge -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:text="⚡ MELO NINSTALLER"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.15"
+            android:textColor="#80c8f8"
+            android:background="@drawable/web_badge_pill"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Melo Ninstaller"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:fontFamily="serif"
+            android:letterSpacing="0.05"
+            android:textColor="#80c8f8"
+            android:gravity="center"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cài mod nhạc / video cho Liên Quân Mobile"
+            android:textSize="12sp"
+            android:textColor="#386080"
+            android:gravity="center"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Info card -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="20dp"
-            android:layout_marginTop="12dp">
-
-            <ImageView
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:src="@drawable/logo_header"
-                android:scaleType="centerCrop"
-                android:layout_marginEnd="14dp" />
+            android:background="@drawable/web_bg_card"
+            android:orientation="vertical"
+            android:padding="18dp"
+            android:layout_marginBottom="20dp">
 
             <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Melo Ninstaller"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="#e94560" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Liên Quân Mobile — cài mod nhạc/video"
-                    android:textSize="12sp"
-                    android:textColor="#666666" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
 
                 <TextView
                     android:id="@+id/tvShizukuDot"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="●"
-                    android:textSize="16sp"
-                    android:textColor="#888888"
-                    android:layout_marginEnd="4dp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Shizuku"
-                    android:textSize="11sp"
-                    android:textColor="#888888" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Info card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/card_background"
-            android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="20dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="THÔNG TIN"
-                android:textSize="11sp"
-                android:textColor="#555555"
-                android:letterSpacing="0.1"
-                android:layout_marginBottom="12dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="10dp">
+                    android:textSize="14sp"
+                    android:textColor="#386080"
+                    android:layout_marginEnd="8dp" />
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Trạng thái Shizuku"
-                    android:textColor="#888888"
-                    android:textSize="13sp" />
+                    android:text="Shizuku"
+                    android:textColor="#a0c8ee"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tvShizukuStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Đang kiểm tra..."
-                    android:textColor="#ffffff"
+                    android:textColor="#d8eeff"
                     android:textSize="13sp"
                     android:textStyle="bold" />
             </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#142236"
+                android:layout_marginBottom="12dp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -131,235 +113,180 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="File mod đã chọn"
-                    android:textColor="#888888"
-                    android:textSize="13sp" />
+                    android:text="File Mod"
+                    android:textColor="#a0c8ee"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tvSelectedFile"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Chưa chọn"
-                    android:textColor="#888888"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:maxWidth="180dp"
+                    android:textColor="#386080"
+                    android:textSize="12sp"
+                    android:maxWidth="170dp"
                     android:ellipsize="middle"
                     android:singleLine="true" />
             </LinearLayout>
         </LinearLayout>
 
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cardRequestPermission"
+        <!-- ═══ KHUNG PREVIEW — hiện khi zip đã chọn có chứa .wem/video ═══ -->
+        <FrameLayout
+            android:id="@+id/previewVideoWrap"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="14dp"
-            app:cardElevation="4dp"
-            app:cardBackgroundColor="#e94560"
-            android:layout_marginBottom="12dp">
+            android:layout_height="200dp"
+            android:background="#000000"
+            android:visibility="gone"
+            android:layout_marginBottom="6dp">
 
-            <LinearLayout
-                android:id="@+id/btnRequestPermission"
+            <VideoView
+                android:id="@+id/previewVideo"
                 android:layout_width="match_parent"
-                android:layout_height="64dp"
+                android:layout_height="match_parent" />
+
+            <ImageView
+                android:id="@+id/previewOverlayImg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/preview_overlay"
+                android:scaleType="centerCrop" />
+
+            <!-- Toggle chip bật/tắt overlay UI mô phỏng — giống web -->
+            <LinearLayout
+                android:id="@+id/overlayToggleChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:layout_margin="8dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:paddingStart="20dp"
-                android:background="?attr/selectableItemBackground"
+                android:background="#73000000"
+                android:paddingStart="9dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
                 android:clickable="true"
                 android:focusable="true">
 
                 <TextView
-                    android:layout_width="36dp"
-                    android:layout_height="wrap_content"
-                    android:text="🔑"
-                    android:textSize="22sp"
-                    android:gravity="center"
-                    android:layout_marginEnd="12dp" />
-
-                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/tvRequestPermissionTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Xin quyền Shizuku"
-                        android:textColor="#ffffff"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tvRequestPermissionSubtitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Cần cấp quyền trước khi cài mod"
-                        android:textColor="#ffcccc"
-                        android:textSize="11sp" />
-                </LinearLayout>
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="14dp"
-            app:cardElevation="4dp"
-            app:cardBackgroundColor="#0f3460"
-            android:layout_marginBottom="12dp">
-
-            <LinearLayout
-                android:id="@+id/btnPickZip"
-                android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingStart="20dp"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true">
+                    android:text="UI"
+                    android:textColor="#ffffff"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="5dp" />
 
                 <TextView
-                    android:layout_width="36dp"
-                    android:layout_height="wrap_content"
-                    android:text="📂"
-                    android:textSize="22sp"
-                    android:gravity="center"
-                    android:layout_marginEnd="12dp" />
-
-                <LinearLayout
+                    android:id="@+id/tvOverlayToggleState"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Chọn file Mod"
-                        android:textColor="#ffffff"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Chọn file .zip mod đã tải từ web"
-                        android:textColor="#aaaacc"
-                        android:textSize="11sp" />
-                </LinearLayout>
+                    android:text="●"
+                    android:textColor="#80c8f8"
+                    android:textSize="13sp" />
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
 
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="14dp"
-            app:cardElevation="4dp"
-            app:cardBackgroundColor="#16213e"
-            android:layout_marginBottom="12dp">
-
+            <!-- Overlay báo trạng thái rỗng/đang tải, che video khi chưa sẵn sàng -->
             <LinearLayout
-                android:id="@+id/btnInstall"
+                android:id="@+id/previewEmptyOverlay"
                 android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingStart="20dp"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:alpha="0.5">
+                android:layout_height="match_parent"
+                android:background="#80000000"
+                android:gravity="center"
+                android:padding="16dp">
 
                 <TextView
-                    android:layout_width="36dp"
-                    android:layout_height="wrap_content"
-                    android:text="📦"
-                    android:textSize="22sp"
-                    android:gravity="center"
-                    android:layout_marginEnd="12dp" />
-
-                <LinearLayout
+                    android:id="@+id/tvPreviewEmptyLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Cài Mod"
-                        android:textColor="#ffffff"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Cài file mod đã chọn vào game"
-                        android:textColor="#888888"
-                        android:textSize="11sp" />
-                </LinearLayout>
+                    android:text="Chọn file mod để xem trước tại đây"
+                    android:textColor="#ffffff"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:gravity="center" />
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </FrameLayout>
 
-        <androidx.cardview.widget.CardView
+        <TextView
+            android:id="@+id/tvPreviewCaption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="14dp"
-            app:cardElevation="4dp"
-            app:cardBackgroundColor="#2a2a3e"
-            android:layout_marginBottom="24dp">
+            android:text="Xem trước nhạc/video có trong file mod đã chọn."
+            android:textColor="#386080"
+            android:textSize="10sp"
+            android:gravity="center"
+            android:layout_marginBottom="18dp" />
 
-            <LinearLayout
-                android:id="@+id/btnUninstallAll"
-                android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingStart="20dp"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true">
+        <!-- Xin quyền Shizuku -->
+        <TextView
+            android:id="@+id/btnRequestPermission"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/web_gradient_pill"
+            android:text="🔑  Xin quyền Shizuku"
+            android:textColor="#0b0800"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginBottom="12dp" />
 
-                <TextView
-                    android:layout_width="36dp"
-                    android:layout_height="wrap_content"
-                    android:text="🗑️"
-                    android:textSize="22sp"
-                    android:gravity="center"
-                    android:layout_marginEnd="12dp" />
+        <!-- Chọn file mod -->
+        <TextView
+            android:id="@+id/btnPickZip"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/web_ghost_pill"
+            android:text="📂  Chọn file Mod (.zip)"
+            android:textColor="#a0c8ee"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginBottom="12dp" />
 
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
+        <!-- Cài mod -->
+        <TextView
+            android:id="@+id/btnInstall"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/web_gradient_pill"
+            android:text="📦  Cài Mod"
+            android:textColor="#0b0800"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:alpha="0.4"
+            android:layout_marginBottom="12dp" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Gỡ tất cả Mod"
-                        android:textColor="#ffffff"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
+        <!-- Gỡ mod -->
+        <TextView
+            android:id="@+id/btnUninstallAll"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/web_ghost_pill"
+            android:text="🗑️  Gỡ tất cả Mod"
+            android:textColor="#a0c8ee"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginBottom="24dp" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Khôi phục về nguyên trạng gốc"
-                        android:textColor="#888888"
-                        android:textSize="11sp" />
-                </LinearLayout>
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
+        <!-- Progress -->
         <ProgressBar
             android:id="@+id/progressBar"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:max="100"
-            android:progressTint="#e94560"
+            android:progressTint="#80c8f8"
             android:visibility="gone"
             android:layout_marginBottom="4dp" />
 
@@ -367,26 +294,28 @@
             android:id="@+id/tvProgressLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#aaaacc"
+            android:textColor="#6a94b8"
             android:textSize="12sp"
+            android:gravity="center"
             android:visibility="gone"
             android:layout_marginBottom="16dp" />
 
+        <!-- Log toggle -->
         <LinearLayout
             android:id="@+id/handleBarLog"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center_horizontal"
-            android:paddingTop="6dp"
+            android:paddingTop="4dp"
             android:paddingBottom="10dp"
             android:clickable="true"
             android:focusable="true">
 
             <View
                 android:layout_width="40dp"
-                android:layout_height="5dp"
-                android:background="@drawable/drag_handle_pill"
+                android:layout_height="4dp"
+                android:background="@drawable/web_ghost_pill"
                 android:layout_marginBottom="8dp" />
 
             <TextView
@@ -394,7 +323,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="🧾 Xem log debug"
-                android:textColor="#888888"
+                android:textColor="#386080"
                 android:textSize="12sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -403,9 +332,9 @@
             android:id="@+id/layoutLog"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/card_background"
+            android:background="@drawable/web_bg_card"
             android:orientation="vertical"
-            android:padding="12dp"
+            android:padding="14dp"
             android:visibility="gone">
 
             <TextView
@@ -414,18 +343,9 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:textSize="11sp"
-                android:textColor="#aaaacc"
+                android:textColor="#6a94b8"
                 android:text="" />
         </LinearLayout>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Melo Ninstaller — bản test"
-            android:textSize="11sp"
-            android:textColor="#333355"
-            android:gravity="center"
-            android:layout_marginTop="16dp" />
 
     </LinearLayout>
 </ScrollView>

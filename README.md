@@ -12,14 +12,31 @@ dùng lại khi quay lại giai đoạn "build mod trong app".
 ## Đã hoạt động trong bản này
 - Xin quyền Shizuku (`ShizukuPermissionHelper`)
 - Chọn file zip mod bằng Storage Access Framework
+- **Xem trước mod ngay sau khi chọn zip** (`ModPreviewLocator`): giải nén
+  tạm, tìm file `.wem` đầu tiên và file video đầu tiên trong zip, phát
+  video loop tắt tiếng + audio giải mã từ `.wem` (qua WebView ẩn chạy
+  `wemogg.js` — `PreviewDecoder`) phát riêng, đồng bộ gần đúng — có toggle
+  bật/tắt overlay UI mô phỏng giống trên web. KHÔNG đụng đến file trong
+  game, chỉ đọc từ zip đã chọn.
 - Giải nén zip, tự suy đường dẫn đích từ cấu trúc thư mục trong zip
   (không cần khai báo trước danh sách file)
 - Backup từng file bị ghi đè bằng rename `<tên gốc> -> <tên gốc>.nins`,
   quyết định dựa vào trạng thái filesystem thật (không phụ thuộc hoàn
   toàn vào 1 manifest nội bộ dễ mất khi xoá data app)
 - Nhận diện riêng file mới cố định tên `30082005.wem` (không có gốc để
-  backup) để xoá thẳng khi gỡ mod
-- Gỡ toàn bộ mod: quét `*.nins` trên filesystem + xoá file tên cố định
+  backup) để xoá thẳng khi gỡ mod — áp dụng cả lúc CÀI (không backup nhầm
+  file của chính app từ lần cài trước) lẫn lúc GỠ
+- "Fix ISPDiff" 1 lần duy nhất (`IspdiffFixer`) — khắc phục việc Android
+  chặn ghi file media (.mp4) không-root trong `Android/data/`, bằng cách
+  tạo lại thư mục do chính app sở hữu
+- Gỡ toàn bộ mod: khôi phục ISPDiff nguyên khối trước, sau đó quét/khôi
+  phục file lẻ ở phần còn lại — có loại trừ vùng đã xử lý xong để tránh
+  đụng lại
+
+## UI
+Chỉ có **1 Activity duy nhất** (`MainActivity`), theme **Nod-Krai** (xanh
+băng, lấy đúng bảng màu từ CSS `[data-theme="snezhnaya"]` trên web) —
+nút pill bo tròn, card viền mảnh, tái hiện ngôn ngữ thiết kế của web.
 
 ## Build APK bằng GitHub Actions (không cần Android Studio)
 
