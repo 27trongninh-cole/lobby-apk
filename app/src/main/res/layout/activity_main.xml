@@ -79,6 +79,7 @@
                     android:layout_marginEnd="8dp" />
 
                 <TextView
+                    android:id="@+id/tvShizukuLabel"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -93,8 +94,28 @@
                     android:layout_height="wrap_content"
                     android:text="Đang kiểm tra..."
                     android:textColor="#d8eeff"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="8dp" />
+
+                <!-- Nút cấp quyền — nằm NGAY TRÊN DÒNG trạng thái, không còn là
+                     nút riêng chiếm cả hàng bên dưới. Trên Android < 11, dòng
+                     này đổi thành hiển thị phiên bản hệ điều hành, ẩn nút này. -->
+                <TextView
+                    android:id="@+id/btnRequestPermission"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:minWidth="0dp"
+                    android:background="@drawable/web_gradient_pill"
+                    android:text="Cấp quyền"
+                    android:textColor="#0b0800"
+                    android:textStyle="bold"
+                    android:textSize="11sp"
+                    android:gravity="center"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:clickable="true"
+                    android:focusable="true" />
             </LinearLayout>
 
             <View
@@ -130,22 +151,6 @@
                     android:singleLine="true" />
             </LinearLayout>
         </LinearLayout>
-
-        <!-- Xin quyền Shizuku — LUÔN đứng đầu danh sách hành động, không bị
-             preview (chỉ xuất hiện sau khi có file) đẩy xuống dưới. -->
-        <TextView
-            android:id="@+id/btnRequestPermission"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:background="@drawable/web_gradient_pill"
-            android:text="🔑  Xin quyền Shizuku"
-            android:textColor="#0b0800"
-            android:textStyle="bold"
-            android:textSize="14sp"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:layout_marginBottom="12dp" />
 
         <!-- Chọn file mod -->
         <TextView

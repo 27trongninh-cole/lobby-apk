@@ -1,6 +1,7 @@
 package com.echohall.kgvn;
 
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.format.DateFormat;
 import android.view.View;
@@ -26,6 +27,7 @@ import java.util.Date;
 public class MainActivity extends AppCompatActivity {
 
     private TextView tvShizukuDot;
+    private TextView tvShizukuLabel;
     private TextView tvShizukuStatus;
     private TextView tvSelectedFile;
     private TextView tvLog;
@@ -59,6 +61,15 @@ public class MainActivity extends AppCompatActivity {
     private ShizukuPermissionHelper.State currentShizukuState = ShizukuPermissionHelper.State.BINDER_NOT_AVAILABLE;
     private boolean logExpanded = false;
 
+    // Android < 11 (API 30): scoped storage cho Android/data/ chưa bị siết,
+    // về lý thuyết không CẦN Shizuku để ghi vào thư mục app khác. Cờ này chỉ
+    // quyết định việc MỞ KHOÁ NÚT ở tầng UI theo đúng yêu cầu — lưu ý: logic
+    // cài/gỡ mod (ModBackupManager/IspdiffFixer/ModInstaller) hiện VẪN gọi
+    // lệnh qua Shizuku KHÔNG ĐIỀU KIỆN, nên trên máy <11 thật sự chạy các thao
+    // tác đó vẫn cần Shizuku đang hoạt động cho đến khi có luồng ghi file trực
+    // tiếp riêng (chưa làm) thay thế.
+    private final boolean isPreScopedStorage = Build.VERSION.SDK_INT < Build.VERSION_CODES.R;
+
     private final ActivityResultLauncher<String[]> pickZipLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
                 if (uri == null) return;
@@ -74,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         tvShizukuDot = findViewById(R.id.tvShizukuDot);
+        tvShizukuLabel = findViewById(R.id.tvShizukuLabel);
         tvShizukuStatus = findViewById(R.id.tvShizukuStatus);
         tvSelectedFile = findViewById(R.id.tvSelectedFile);
         tvLog = findViewById(R.id.tvLog);
@@ -99,28 +111,54 @@ public class MainActivity extends AppCompatActivity {
         modInstaller = new ModInstaller(this);
         previewLocator = new ModPreviewLocator(this);
         previewDecoder = new PreviewDecoder(this, (ViewGroup) findViewById(android.R.id.content));
-        shizukuHelper = new ShizukuPermissionHelper(this, this::onShizukuStateChanged);
 
-        btnRequestPermission.setOnClickListener(v -> shizukuHelper.requestPermission());
         btnPickZip.setOnClickListener(v -> pickZipLauncher.launch(new String[]{"application/zip", "application/octet-stream"}));
         btnInstall.setOnClickListener(v -> onInstallClicked());
         btnUninstallAll.setOnClickListener(v -> onUninstallAllClicked());
         handleBarLog.setOnClickListener(v -> toggleLog());
         overlayToggleChip.setOnClickListener(v -> toggleOverlay());
 
-        shizukuHelper.checkAndNotify();
+        if (isPreScopedStorage) {
+            // KHÔNG khởi tạo shizukuHelper ở đây — nếu Shizuku tình cờ đang
+            // chạy trên máy <11 này, các sự kiện binder của nó (đăng ký sticky)
+            // có thể tự bắn callback và khoá lại nút, phá vỡ đúng mục đích
+            // bypass. Không tạo listener thì không có gì để tự động khoá lại.
+            setupPreScopedStorageUi();
+        } else {
+            shizukuHelper = new ShizukuPermissionHelper(this, this::onShizukuStateChanged);
+            btnRequestPermission.setOnClickListener(v -> shizukuHelper.requestPermission());
+            shizukuHelper.checkAndNotify();
+        }
+    }
+
+    /**
+     * Android < 11: dòng trạng thái đổi thành hiển thị phiên bản hệ điều
+     * hành thay vì Shizuku, ẩn nút cấp quyền, và MỞ KHOÁ toàn bộ nút bên
+     * dưới ngay từ đầu (không đợi Shizuku) — đúng yêu cầu ở tầng UI. Xem
+     * ghi chú tại khai báo isPreScopedStorage về giới hạn thực tế còn lại.
+     */
+    private void setupPreScopedStorageUi() {
+        tvShizukuDot.setTextColor(0xFF80c8f8);
+        tvShizukuLabel.setText("Android");
+        tvShizukuStatus.setText("API " + Build.VERSION.SDK_INT + " (không cần Shizuku)");
+        btnRequestPermission.setVisibility(View.GONE);
+        setActionButtonsLocked(false);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        shizukuHelper.checkAndNotify();
+        if (!isPreScopedStorage && shizukuHelper != null) {
+            shizukuHelper.checkAndNotify();
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        shizukuHelper.unregister();
+        if (shizukuHelper != null) {
+            shizukuHelper.unregister();
+        }
         stopPreview();
         previewDecoder.destroy();
     }
@@ -219,27 +257,41 @@ public class MainActivity extends AppCompatActivity {
             case BINDER_NOT_AVAILABLE:
                 tvShizukuDot.setTextColor(0xFF386080);
                 tvShizukuStatus.setText("Chưa sẵn sàng");
-                btnRequestPermission.setText("🔑  Kiểm tra lại Shizuku");
+                btnRequestPermission.setText("Kiểm tra");
                 btnRequestPermission.setAlpha(1f);
                 break;
             case PERMISSION_DENIED:
                 tvShizukuDot.setTextColor(0xFFe9c846);
                 tvShizukuStatus.setText("Chưa cấp quyền");
-                btnRequestPermission.setText("🔑  Xin quyền Shizuku");
+                btnRequestPermission.setText("Cấp quyền");
                 btnRequestPermission.setAlpha(1f);
                 break;
             case GRANTED:
                 tvShizukuDot.setTextColor(0xFF6fcf6f);
-                tvShizukuStatus.setText("Đã sẵn sàng ✓");
-                btnRequestPermission.setText("🔑  Đã cấp quyền");
+                tvShizukuStatus.setText("Sẵn sàng ✓");
+                btnRequestPermission.setText("✓ OK");
                 btnRequestPermission.setAlpha(0.6f);
                 break;
         }
+        // Mọi nút bên dưới (chọn file, cài, gỡ) đều khoá lại cho đến khi có
+        // quyền Shizuku — đúng yêu cầu: quyền này là điều kiện tiên quyết
+        // trước khi làm bất cứ gì khác, không riêng nút Cài Mod.
+        setActionButtonsLocked(state != ShizukuPermissionHelper.State.GRANTED);
+        updateInstallButtonEnabled();
+    }
+
+    /** Khoá/mở tất cả nút PHÍA DƯỚI khối cấp quyền (chọn file + gỡ mod). Nút Cài Mod có thêm điều kiện riêng (phải chọn file), xử lý ở updateInstallButtonEnabled(). */
+    private void setActionButtonsLocked(boolean locked) {
+        btnPickZip.setEnabled(!locked);
+        btnPickZip.setAlpha(locked ? 0.4f : 1f);
+        btnUninstallAll.setEnabled(!locked);
+        btnUninstallAll.setAlpha(locked ? 0.4f : 1f);
         updateInstallButtonEnabled();
     }
 
     private void updateInstallButtonEnabled() {
-        boolean enabled = selectedZipUri != null && currentShizukuState == ShizukuPermissionHelper.State.GRANTED;
+        boolean permissionOk = isPreScopedStorage || currentShizukuState == ShizukuPermissionHelper.State.GRANTED;
+        boolean enabled = selectedZipUri != null && permissionOk;
         btnInstall.setEnabled(enabled);
         btnInstall.setAlpha(enabled ? 1f : 0.4f);
     }
@@ -350,11 +402,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setBusyUi(boolean busy, String initialLabel) {
-        boolean canInstall = !busy && selectedZipUri != null && currentShizukuState == ShizukuPermissionHelper.State.GRANTED;
+        boolean permissionOk = isPreScopedStorage || currentShizukuState == ShizukuPermissionHelper.State.GRANTED;
+        boolean canInstall = !busy && selectedZipUri != null && permissionOk;
         btnInstall.setEnabled(canInstall);
         btnInstall.setAlpha(canInstall ? 1f : 0.4f);
-        btnUninstallAll.setEnabled(!busy);
-        btnPickZip.setEnabled(!busy);
+
+        // Hết bận -> trả về đúng trạng thái khoá/mở theo quyền, KHÔNG mở
+        // khoá vô điều kiện (trước đây thiếu kiểm tra permissionOk ở đây,
+        // khiến nút bật lại dù chưa có quyền, sau khi 1 thao tác busy kết thúc).
+        boolean actionButtonsEnabled = !busy && permissionOk;
+        btnUninstallAll.setEnabled(actionButtonsEnabled);
+        btnUninstallAll.setAlpha(actionButtonsEnabled ? 1f : 0.4f);
+        btnPickZip.setEnabled(actionButtonsEnabled);
+        btnPickZip.setAlpha(actionButtonsEnabled ? 1f : 0.4f);
+
         progressBar.setVisibility(busy ? View.VISIBLE : View.GONE);
         tvProgressLabel.setVisibility(busy ? View.VISIBLE : View.GONE);
         if (busy) {
