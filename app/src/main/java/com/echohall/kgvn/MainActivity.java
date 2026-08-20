@@ -1,6 +1,5 @@
 package com.echohall.kgvn;
 
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.format.DateFormat;
@@ -17,8 +16,6 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.util.Date;
 
 /**
@@ -52,7 +49,6 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvPreviewEmptyLabel;
     private TextView tvPreviewCaption;
     private boolean overlayOn = true;
-    private MediaPlayer previewAudioPlayer;
     private PreviewDecoder previewDecoder;
 
     private ShizukuPermissionHelper shizukuHelper;
@@ -134,6 +130,7 @@ public class MainActivity extends AppCompatActivity {
     private void loadPreview(Uri zipUri) {
         stopPreview();
         previewVideoWrap.setVisibility(View.VISIBLE);
+        tvPreviewCaption.setVisibility(View.VISIBLE);
         previewEmptyOverlay.setVisibility(View.VISIBLE);
         tvPreviewEmptyLabel.setText("Đang tải preview...");
 
@@ -178,43 +175,20 @@ public class MainActivity extends AppCompatActivity {
         if (files.wemFile != null) {
             try {
                 byte[] wemBytes = java.nio.file.Files.readAllBytes(files.wemFile.toPath());
-                previewDecoder.decode(wemBytes, new PreviewDecoder.Callback() {
+                previewDecoder.playWem(wemBytes, new PreviewDecoder.PlaybackCallback() {
                     @Override
-                    public void onOggReady(byte[] oggBytes) {
-                        runOnUiThread(() -> playDecodedAudio(oggBytes));
+                    public void onPlaybackStarted() {
+                        // Không cần làm gì thêm — audio tự phát loop trong WebView.
                     }
 
                     @Override
                     public void onError(String message) {
-                        runOnUiThread(() -> log("⚠ Giải mã nhạc preview lỗi: " + message));
+                        runOnUiThread(() -> log("⚠ Phát nhạc preview lỗi: " + message));
                     }
                 });
             } catch (Exception e) {
                 log("⚠ Không đọc được file .wem để preview: " + e.getMessage());
             }
-        }
-    }
-
-    private void playDecodedAudio(byte[] oggBytes) {
-        try {
-            File tmp = new File(getCacheDir(), "preview_audio.ogg");
-            try (FileOutputStream fos = new FileOutputStream(tmp)) {
-                fos.write(oggBytes);
-            }
-            if (previewAudioPlayer != null) {
-                previewAudioPlayer.release();
-            }
-            previewAudioPlayer = new MediaPlayer();
-            previewAudioPlayer.setDataSource(tmp.getAbsolutePath());
-            previewAudioPlayer.setLooping(true);
-            previewAudioPlayer.setOnPreparedListener(MediaPlayer::start);
-            previewAudioPlayer.setOnErrorListener((mp, what, extra) -> {
-                log("⚠ Lỗi phát audio preview (what=" + what + ")");
-                return true;
-            });
-            previewAudioPlayer.prepareAsync();
-        } catch (Exception e) {
-            log("⚠ Không phát được audio preview: " + e.getMessage());
         }
     }
 
@@ -228,12 +202,14 @@ public class MainActivity extends AppCompatActivity {
         if (previewVideo != null) {
             previewVideo.stopPlayback();
         }
-        if (previewAudioPlayer != null) {
-            previewAudioPlayer.release();
-            previewAudioPlayer = null;
+        if (previewDecoder != null) {
+            previewDecoder.stopAudio();
         }
         if (previewVideoWrap != null) {
             previewVideoWrap.setVisibility(View.GONE);
+        }
+        if (tvPreviewCaption != null) {
+            tvPreviewCaption.setVisibility(View.GONE);
         }
     }
 

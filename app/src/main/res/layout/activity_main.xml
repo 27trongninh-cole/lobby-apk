@@ -131,7 +131,39 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- ═══ KHUNG PREVIEW — hiện khi zip đã chọn có chứa .wem/video ═══ -->
+        <!-- Xin quyền Shizuku — LUÔN đứng đầu danh sách hành động, không bị
+             preview (chỉ xuất hiện sau khi có file) đẩy xuống dưới. -->
+        <TextView
+            android:id="@+id/btnRequestPermission"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/web_gradient_pill"
+            android:text="🔑  Xin quyền Shizuku"
+            android:textColor="#0b0800"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Chọn file mod -->
+        <TextView
+            android:id="@+id/btnPickZip"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/web_ghost_pill"
+            android:text="📂  Chọn file Mod (.zip)"
+            android:textColor="#a0c8ee"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginBottom="16dp" />
+
+        <!-- ═══ KHUNG PREVIEW — chỉ chiếm chỗ SAU KHI đã chọn file, giữa
+             bước "chọn file" và bước "cài" — đúng luồng thao tác thật. ═══ -->
         <FrameLayout
             android:id="@+id/previewVideoWrap"
             android:layout_width="match_parent"
@@ -216,37 +248,8 @@
             android:textColor="#386080"
             android:textSize="10sp"
             android:gravity="center"
+            android:visibility="gone"
             android:layout_marginBottom="18dp" />
-
-        <!-- Xin quyền Shizuku -->
-        <TextView
-            android:id="@+id/btnRequestPermission"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:background="@drawable/web_gradient_pill"
-            android:text="🔑  Xin quyền Shizuku"
-            android:textColor="#0b0800"
-            android:textStyle="bold"
-            android:textSize="14sp"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:layout_marginBottom="12dp" />
-
-        <!-- Chọn file mod -->
-        <TextView
-            android:id="@+id/btnPickZip"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:background="@drawable/web_ghost_pill"
-            android:text="📂  Chọn file Mod (.zip)"
-            android:textColor="#a0c8ee"
-            android:textStyle="bold"
-            android:textSize="14sp"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:layout_marginBottom="12dp" />
 
         <!-- Cài mod -->
         <TextView

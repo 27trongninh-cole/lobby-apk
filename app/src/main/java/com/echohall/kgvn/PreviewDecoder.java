@@ -10,37 +10,52 @@ import android.webkit.WebView;
 import android.widget.FrameLayout;
 
 /**
- * "Máy giải mã" .wem -> .ogg chạy bằng 1 WebView ẩn (visibility=GONE) load
- * assets/preview.html, vốn chỉ include wemogg.js (port JS thuần của
- * ww2ogg, không phụ thuộc DOM) + cầu nối JS. Người dùng không thấy WebView
- * này — nó không phải UI, chỉ là "công cụ tính toán" tái dùng code JS đã
- * chạy ổn trên bản web, tránh phải port thuật toán Vorbis/RIFF sang Kotlin
- * (rất dễ sai offset).
+ * "Máy giải mã + phát nhạc preview" chạy bằng 1 WebView ẩn (visibility=GONE)
+ * load assets/preview.html (include wemogg.js — port JS thuần của ww2ogg).
+ * Người dùng không thấy WebView này — nó không phải UI hiển thị, chỉ là
+ * "công cụ" tái dùng code JS đã chạy ổn trên bản web.
+ *
+ * QUAN TRỌNG: giải mã .wem -> Ogg VÀ PHÁT NHẠC đều xảy ra ngay TRONG
+ * WebView (qua thẻ <audio>), KHÔNG trả bytes .ogg ra native MediaPlayer.
+ * Lý do: Ogg do wemToOgg() tự dựng lại container có thể đủ hợp lệ để
+ * trình duyệt phát (khoan dung với sai lệch nhẹ) nhưng KHÔNG đủ chuẩn để
+ * Android MediaPlayer chấp nhận toàn bộ — quan sát thực tế: phát được vài
+ * giây đầu rồi lỗi MEDIA_ERROR_UNKNOWN giữa chừng. Giữ nguyên trong cùng 1
+ * engine (trình duyệt) loại bỏ hẳn phụ thuộc vào độ khắt khe của
+ * MediaPlayer native.
  *
  * Cách dùng:
  *   PreviewDecoder decoder = new PreviewDecoder(activity, rootViewGroup);
- *   decoder.decode(wemBytes, new PreviewDecoder.Callback() {
- *       public void onOggReady(byte[] oggBytes) { ... phát bằng MediaPlayer ... }
+ *   decoder.playWem(wemBytes, new PreviewDecoder.PlaybackCallback() {
+ *       public void onPlaybackStarted() { ... }
  *       public void onError(String message) { ... }
  *   });
+ *   ...
+ *   decoder.stopAudio();
  *
  * Gọi decoder.destroy() trong onDestroy() của Activity để giải phóng WebView.
  */
 public class PreviewDecoder {
 
-    public interface Callback {
-        void onOggReady(byte[] oggBytes);
+    public interface PlaybackCallback {
+        void onPlaybackStarted();
         void onError(String message);
     }
 
     private final WebView webView;
-    private Callback pendingCallback; // chỉ hỗ trợ 1 request tại 1 thời điểm — đủ dùng cho "nghe thử"
+    private PlaybackCallback pendingCallback; // chỉ hỗ trợ 1 request tại 1 thời điểm — đủ dùng cho "nghe thử"
 
     @SuppressLint("SetJavaScriptEnabled")
     public PreviewDecoder(Context context, ViewGroup attachTo) {
         webView = new WebView(context);
-        webView.setVisibility(View.GONE); // KHÔNG hiển thị — chỉ dùng làm engine JS
+        webView.setVisibility(View.GONE); // KHÔNG hiển thị — chỉ dùng làm engine JS + phát audio ẩn
         webView.getSettings().setJavaScriptEnabled(true);
+        // Mặc định WebView chặn tự động phát media có âm thanh nếu không có
+        // "cử chỉ người dùng" trực tiếp trong chính WebView — ở đây lệnh phát
+        // đến từ native (evaluateJavascript), không tính là cử chỉ người dùng
+        // theo con mắt của WebView, nên PHẢI tắt yêu cầu này, nếu không
+        // audio.play() sẽ bị từ chối âm thầm (promise reject).
+        webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
         webView.addJavascriptInterface(new Bridge(), "AndroidBridge");
         webView.loadUrl("file:///android_asset/preview.html");
 
@@ -48,11 +63,15 @@ public class PreviewDecoder {
         attachTo.addView(webView, lp);
     }
 
-    public void decode(byte[] wemBytes, Callback callback) {
+    /** Giải mã .wem -> Ogg rồi phát ngay trong WebView (loop). */
+    public void playWem(byte[] wemBytes, PlaybackCallback callback) {
         this.pendingCallback = callback;
         String b64 = Base64.encodeToString(wemBytes, Base64.NO_WRAP);
-        // Escape an toàn: base64 chỉ gồm [A-Za-z0-9+/=], không cần escape thêm.
-        webView.post(() -> webView.evaluateJavascript("decodeWemBase64('" + b64 + "')", null));
+        webView.post(() -> webView.evaluateJavascript("playWemBase64('" + b64 + "')", null));
+    }
+
+    public void stopAudio() {
+        webView.post(() -> webView.evaluateJavascript("stopWemAudio()", null));
     }
 
     public void destroy() {
@@ -61,18 +80,17 @@ public class PreviewDecoder {
 
     private class Bridge {
         @JavascriptInterface
-        public void onOggReady(String oggBase64) {
-            byte[] oggBytes = Base64.decode(oggBase64, Base64.NO_WRAP);
-            Callback cb = pendingCallback;
+        public void onPlaybackStarted() {
+            PlaybackCallback cb = pendingCallback;
             pendingCallback = null;
             if (cb != null) {
-                webView.post(() -> cb.onOggReady(oggBytes));
+                webView.post(cb::onPlaybackStarted);
             }
         }
 
         @JavascriptInterface
         public void onError(String message) {
-            Callback cb = pendingCallback;
+            PlaybackCallback cb = pendingCallback;
             pendingCallback = null;
             if (cb != null) {
                 webView.post(() -> cb.onError(message));

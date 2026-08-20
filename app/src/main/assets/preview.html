@@ -2,16 +2,21 @@
 <html>
 <head><meta charset="utf-8"></head>
 <body>
+<audio id="previewAudio" loop></audio>
 <script src="wemogg.js"></script>
 <script>
-// Cầu nối JS <-> Android. WebView này KHÔNG hiển thị UI, chỉ dùng làm
-// "máy giải mã": nhận bytes .wem (base64) từ native, trả về bytes .ogg
-// (base64) qua AndroidBridge.onOggReady(). Mọi lỗi báo qua onError().
+// Cầu nối JS <-> Android.
 //
-// Lưu ý: WemOgg là IIFE global (const WemOgg = (function(){...})()) —
-// hàm convert cụ thể export ra sao tuỳ theo cuối file wemogg.js, kiểm tra
-// lại tên hàm thật (vd WemOgg.convert / WemOgg.wemToOgg) trước khi build,
-// vì mình chỉ thấy phần đầu file (parseWemHeader) trong lúc soạn khung này.
+// LÝ DO PHÁT AUDIO NGAY TRONG WEBVIEW (không trả bytes .ogg ra native
+// MediaPlayer nữa): file .ogg do wemToOgg() TỰ DỰNG LẠI container có thể
+// đủ hợp lệ để trình duyệt phát (rất khoan dung với Ogg hơi lệch chuẩn)
+// nhưng KHÔNG đủ chuẩn để Android MediaPlayer chấp nhận toàn bộ — quan sát
+// thực tế: phát được vài giây đầu rồi lỗi MEDIA_ERROR_UNKNOWN giữa chừng.
+// Giữ cả giải mã LẪN phát nhạc trong cùng 1 engine (trình duyệt) — nơi
+// wemogg.js vốn được kiểm chứng hoạt động đúng trên web — loại bỏ hẳn phụ
+// thuộc vào độ khắt khe của trình phát native.
+
+var currentAudioUrl = null;
 
 function base64ToArrayBuffer(base64) {
   const binary = atob(base64);
@@ -20,30 +25,39 @@ function base64ToArrayBuffer(base64) {
   return bytes.buffer;
 }
 
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
-// Gọi từ Android: webView.evaluateJavascript("decodeWemBase64('" + b64 + "')", null)
-// API thật (xác nhận từ cuối wemogg.js): window.wemToOgg(wemBytes: Uint8Array,
-// codebookLibBytes?: Uint8Array, opts?) -> Uint8Array. Codebook chuẩn aoTuV 6.03
-// đã nhúng sẵn trong file (biến CODEBOOK_B64/window.WEMOGG_CODEBOOK), nên không
-// cần truyền codebookLibBytes — bỏ trống/undefined là dùng mặc định.
-function decodeWemBase64(wemBase64) {
+// Gọi từ Android: webView.evaluateJavascript("playWemBase64('" + b64 + "')", null)
+// Giải mã .wem -> Ogg rồi PHÁT LUÔN bằng thẻ <audio> của chính WebView —
+// không trả bytes ra ngoài native nữa. Báo lỗi/callback qua AndroidBridge.
+function playWemBase64(wemBase64) {
   try {
     const wemBuf = base64ToArrayBuffer(wemBase64);
     const wemBytes = new Uint8Array(wemBuf);
-    const oggBytes = window.wemToOgg(wemBytes); // dùng codebook mặc định đã nhúng
-    const oggBase64 = arrayBufferToBase64(oggBytes.buffer);
-    if (window.AndroidBridge) AndroidBridge.onOggReady(oggBase64);
+    const oggBytes = window.wemToOgg(wemBytes); // codebook mặc định đã nhúng sẵn trong file
+
+    const blob = new Blob([oggBytes], { type: 'audio/ogg' });
+    if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl); // dọn URL cũ, tránh rò rỉ bộ nhớ
+    currentAudioUrl = URL.createObjectURL(blob);
+
+    const audio = document.getElementById('previewAudio');
+    audio.src = currentAudioUrl;
+    audio.loop = true;
+    audio.currentTime = 0;
+    audio.play()
+      .then(() => { if (window.AndroidBridge) AndroidBridge.onPlaybackStarted(); })
+      .catch(err => { if (window.AndroidBridge) AndroidBridge.onError('play() thất bại: ' + err); });
   } catch (err) {
     if (window.AndroidBridge) AndroidBridge.onError(String(err && err.message ? err.message : err));
+  }
+}
+
+function stopWemAudio() {
+  const audio = document.getElementById('previewAudio');
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();
+  if (currentAudioUrl) {
+    URL.revokeObjectURL(currentAudioUrl);
+    currentAudioUrl = null;
   }
 }
 </script>
