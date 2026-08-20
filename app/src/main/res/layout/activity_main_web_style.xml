@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#060810">
+
+<ScrollView
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Badge -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:text="⚡ MELO NINSTALLER"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.15"
+            android:textColor="#f0c060"
+            android:background="@drawable/web_badge_pill"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Melo Ninstaller"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:fontFamily="serif"
+            android:letterSpacing="0.05"
+            android:textColor="#f0c060"
+            android:gravity="center"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cài mod nhạc / video cho Liên Quân Mobile"
+            android:textSize="12sp"
+            android:textColor="#584a2e"
+            android:gravity="center"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Info card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/web_bg_card"
+            android:orientation="vertical"
+            android:padding="18dp"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:id="@+id/tvShizukuDot"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="●"
+                    android:textSize="14sp"
+                    android:textColor="#584a2e"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Shizuku"
+                    android:textColor="#c8b880"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvShizukuStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Đang kiểm tra..."
+                    android:textColor="#f0d888"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#241c10"
+                android:layout_marginBottom="12dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="File Mod"
+                    android:textColor="#c8b880"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvSelectedFile"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Chưa chọn"
+                    android:textColor="#584a2e"
+                    android:textSize="12sp"
+                    android:maxWidth="170dp"
+                    android:ellipsize="middle"
+                    android:singleLine="true" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Xin quyền Shizuku -->
+        <TextView
+            android:id="@+id/btnRequestPermission"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/web_gradient_pill"
+            android:text="🔑  Xin quyền Shizuku"
+            android:textColor="#0b0800"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Chọn file mod -->
+        <TextView
+            android:id="@+id/btnPickZip"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/web_ghost_pill"
+            android:text="📂  Chọn file Mod (.zip)"
+            android:textColor="#c8b880"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Cài mod -->
+        <TextView
+            android:id="@+id/btnInstall"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/web_gradient_pill"
+            android:text="📦  Cài Mod"
+            android:textColor="#0b0800"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:alpha="0.4"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Gỡ mod -->
+        <TextView
+            android:id="@+id/btnUninstallAll"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/web_ghost_pill"
+            android:text="🗑️  Gỡ tất cả Mod"
+            android:textColor="#c8b880"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Progress -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="100"
+            android:progressTint="#f0c060"
+            android:visibility="gone"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/tvProgressLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#a08850"
+            android:textSize="12sp"
+            android:gravity="center"
+            android:visibility="gone"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Log toggle -->
+        <LinearLayout
+            android:id="@+id/handleBarLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="10dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <View
+                android:layout_width="40dp"
+                android:layout_height="4dp"
+                android:background="@drawable/web_ghost_pill"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tvHandleLogLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🧾 Xem log debug"
+                android:textColor="#584a2e"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layoutLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/web_bg_card"
+            android:orientation="vertical"
+            android:padding="14dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textSize="11sp"
+                android:textColor="#a08850"
+                android:text="" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
+
+</FrameLayout>

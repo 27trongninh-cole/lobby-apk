@@ -72,3 +72,11 @@ storage của Android 11+.
 - Test gỡ mod sau khi xoá data app (kiểm tra đúng cơ chế "nguồn sự thật
   là filesystem" đã thiết kế — xoá data app rồi thử gỡ mod, xem có khôi
   phục đúng không dù manifest nội bộ đã mất).
+
+## Ý tưởng để SAU (chưa làm)
+- Tự kết nối ADB (wireless debugging) ngay trong app, bỏ phụ thuộc app
+  Shizuku ngoài — về mặt kỹ thuật khả thi (Shizuku mã nguồn mở, có thể
+  tham khảo lại logic tương tự) nhưng là 1 hạng mục lớn (tự làm client
+  ADB, xử lý pairing/key/kết nối bền vững), không phải việc nhỏ. Chỉ làm
+  sau khi luồng cài/gỡ mod qua Shizuku đã ổn định hoàn toàn qua nhiều máy
+  test.

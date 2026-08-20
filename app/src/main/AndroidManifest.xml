@@ -17,6 +17,19 @@
 
         <activity
             android:name=".MainActivity"
+            android:label="Melo Ninstaller"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Bản UI thứ 2 (phong cách web) — chỉ để SO SÁNH, xoá entry này +
+             MainActivityWebStyle.java sau khi chọn được phong cách ưng ý. -->
+        <activity
+            android:name=".MainActivityWebStyle"
+            android:label="Melo Ninstaller (Web style)"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
