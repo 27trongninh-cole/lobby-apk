@@ -444,12 +444,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showInstallNowDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Đã tạo mod xong")
-                .setMessage("Cài ngay vào game không?")
-                .setPositiveButton("Cài ngay", (dialog, which) -> onInstallClicked())
-                .setNegativeButton("Để sau", null)
-                .show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_install_now, null);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(true)
+                .create();
+
+        dialogView.findViewById(R.id.btnDialogInstallNow).setOnClickListener(v -> {
+            dialog.dismiss();
+            onInstallClicked();
+        });
+        dialogView.findViewById(R.id.btnDialogLater).setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+        // Nền mặc định của cửa sổ dialog là hình chữ nhật trắng/đen tuỳ theme
+        // hệ thống — nếu không xoá, sẽ đè lên góc bo tròn của card bên trong,
+        // làm lộ góc vuông xấu xí thay vì viền cong mượt như thiết kế.
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
     }
 
     private void toggleOverlay() {
