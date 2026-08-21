@@ -6,8 +6,10 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.format.DateFormat;
+import android.util.Base64;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
@@ -19,8 +21,11 @@ import android.widget.VideoView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.Date;
 
 /**
@@ -343,6 +348,10 @@ public class MainActivity extends AppCompatActivity {
         createModWebView.setOverScrollMode(View.OVER_SCROLL_NEVER); // bỏ hiệu ứng "dội" khi cuộn hết trang — dấu hiệu rõ nhất của web
         createModWebView.setVerticalScrollBarEnabled(false);
         createModWebView.setHorizontalScrollBarEnabled(false);
+        // Cầu nối để trang web đưa THẲNG bytes file mod vừa build cho native
+        // (thay vì tự tải qua cơ chế trình duyệt — không hoạt động trong
+        // WebView với blob: URL). Xem CreateModBridge bên dưới.
+        createModWebView.addJavascriptInterface(new CreateModBridge(), "AndroidBridge");
 
         createModWebView.setWebViewClient(new WebViewClient() {
             @Override
@@ -390,6 +399,57 @@ public class MainActivity extends AppCompatActivity {
                 + "document.head.appendChild(s);"
                 + "})();";
         view.evaluateJavascript(js, null);
+    }
+
+    /**
+     * Cầu nối nhận file mod vừa build xong từ trang web (xem phần sửa trong
+     * index.html: AndroidBridge.onModBuilt(base64) thay cho a.click() tải
+     * qua blob: URL — cách cũ không hoạt động trong WebView).
+     */
+    private class CreateModBridge {
+        @JavascriptInterface
+        public void onModBuilt(String base64Zip) {
+            // @JavascriptInterface luôn chạy trên 1 thread nền của WebView,
+            // KHÔNG PHẢI UI thread — mọi thao tác đụng đến View phải post
+            // qua runOnUiThread, nếu không sẽ crash hoặc không có hiệu lực.
+            runOnUiThread(() -> handleModBuilt(base64Zip));
+        }
+    }
+
+    private void handleModBuilt(String base64Zip) {
+        try {
+            byte[] bytes = Base64.decode(base64Zip, Base64.DEFAULT);
+            File externalCache = getExternalCacheDir();
+            if (externalCache == null) {
+                Toast.makeText(this, "Không lưu được file mod (external cache không khả dụng)", Toast.LENGTH_LONG).show();
+                return;
+            }
+            File savedZip = new File(externalCache, "web_built_mod.zip");
+            try (FileOutputStream fos = new FileOutputStream(savedZip)) {
+                fos.write(bytes);
+            }
+
+            // Tự chuyển sang trang Cài Mod, tự chọn luôn file vừa nhận —
+            // người dùng không cần tự tìm file trong Download nữa.
+            selectedZipUri = Uri.fromFile(savedZip);
+            tvSelectedFile.setText(savedZip.getName());
+            switchToPage(true);
+            updateInstallButtonEnabled();
+            loadPreview(selectedZipUri);
+
+            showInstallNowDialog();
+        } catch (Exception e) {
+            Toast.makeText(this, "Lỗi nhận file mod từ trang web: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showInstallNowDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Đã tạo mod xong")
+                .setMessage("Cài ngay vào game không?")
+                .setPositiveButton("Cài ngay", (dialog, which) -> onInstallClicked())
+                .setNegativeButton("Để sau", null)
+                .show();
     }
 
     private void toggleOverlay() {
