@@ -4,6 +4,8 @@
     <!-- Shizuku hoạt động qua Binder, không cần khai quyền hệ thống đặc biệt
          ở đây — quyền thật được Shizuku cấp lúc runtime qua chính app Shizuku. -->
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Dự phòng cho thiết bị Android cũ hơn / các thao tác đọc file zip qua
          SAF không cần các quyền này, nhưng khai để tương thích rộng, không hại gì. -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"

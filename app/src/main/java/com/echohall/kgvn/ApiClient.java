@@ -29,9 +29,8 @@ import java.util.concurrent.Executors;
  */
 public class ApiClient {
 
-    // TODO: đổi thành domain Render thật, tốt nhất tách qua BuildConfig
-    // (khác nhau giữa debug/release) thay vì hardcode 1 chỗ.
-    private static final String BASE_URL = "https://YOUR-APP-NAME.onrender.com";
+    // Dùng chung với trang "Tạo Mod" (WebView) — xem AppConfig.java.
+    private static final String BASE_URL = AppConfig.WEB_BASE_URL;
 
     private static final int CONNECT_TIMEOUT_MS = 35_000; // chịu cold start Render
     private static final int READ_TIMEOUT_MS = 35_000;

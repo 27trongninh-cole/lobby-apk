@@ -1,11 +1,15 @@
 package com.echohall.kgvn;
 
+import android.annotation.SuppressLint;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.format.DateFormat;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -40,6 +44,18 @@ public class MainActivity extends AppCompatActivity {
     private TextView btnUninstallAll;
     private View handleBarLog;
     private View layoutLog;
+
+    // 2 trang
+    private TextView tabInstall;
+    private TextView tabCreate;
+    private View tabBarTrack;
+    private View tabIndicator;
+    private int tabIndicatorWidth = 0;
+    private View pageInstall;
+    private View pageCreate;
+    private WebView createModWebView;
+    private View createModLoading;
+    private boolean createModPageLoaded = false;
 
     // Preview
     private FrameLayout previewVideoWrap;
@@ -108,6 +124,23 @@ public class MainActivity extends AppCompatActivity {
         tvPreviewEmptyLabel = findViewById(R.id.tvPreviewEmptyLabel);
         tvPreviewCaption = findViewById(R.id.tvPreviewCaption);
 
+        tabInstall = findViewById(R.id.tabInstall);
+        tabCreate = findViewById(R.id.tabCreate);
+        tabBarTrack = findViewById(R.id.tabBarTrack);
+        tabIndicator = findViewById(R.id.tabIndicator);
+        pageInstall = findViewById(R.id.pageInstall);
+        pageCreate = findViewById(R.id.pageCreate);
+        createModWebView = findViewById(R.id.createModWebView);
+        createModLoading = findViewById(R.id.createModLoading);
+
+        tabInstall.setOnClickListener(v -> switchToPage(true));
+        tabCreate.setOnClickListener(v -> switchToPage(false));
+
+        // Đợi layout xong mới biết chiều rộng thật của track để tính đúng
+        // kích thước/khoảng trượt của khối indicator — không thể tính trước
+        // lúc view chưa được đo (width lúc này luôn = 0).
+        tabBarTrack.post(this::setupTabIndicatorSize);
+
         modInstaller = new ModInstaller(this);
         previewLocator = new ModPreviewLocator(this);
         previewDecoder = new PreviewDecoder(this, (ViewGroup) findViewById(android.R.id.content));
@@ -154,6 +187,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        if (pageCreate.getVisibility() == View.VISIBLE && createModWebView != null && createModWebView.canGoBack()) {
+            createModWebView.goBack();
+            return;
+        }
+        super.onBackPressed();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (shizukuHelper != null) {
@@ -161,6 +203,9 @@ public class MainActivity extends AppCompatActivity {
         }
         stopPreview();
         previewDecoder.destroy();
+        if (createModWebView != null) {
+            createModWebView.destroy();
+        }
     }
 
     // ─────────────────────────── Preview mod (wem+video trong zip) ───────────────────────────
@@ -228,6 +273,105 @@ public class MainActivity extends AppCompatActivity {
                 log("⚠ Không đọc được file .wem để preview: " + e.getMessage());
             }
         }
+    }
+
+    // ─────────────────────────── 2 trang: Cài Mod / Tạo Mod ───────────────────────────
+
+    private void setupTabIndicatorSize() {
+        int trackWidth = tabBarTrack.getWidth();
+        int trackPadding = tabBarTrack.getPaddingLeft() + tabBarTrack.getPaddingRight();
+        tabIndicatorWidth = (trackWidth - trackPadding) / 2;
+
+        ViewGroup.LayoutParams lp = tabIndicator.getLayoutParams();
+        lp.width = tabIndicatorWidth;
+        tabIndicator.setLayoutParams(lp);
+        // Bắt đầu ở tab "Cài Mod" (mặc định mở app) — vị trí 0, không cần trượt.
+        tabIndicator.setTranslationX(0f);
+    }
+
+    private void switchToPage(boolean install) {
+        pageInstall.setVisibility(install ? View.VISIBLE : View.GONE);
+        pageCreate.setVisibility(install ? View.GONE : View.VISIBLE);
+
+        // Khối "kính" trượt qua lại phía sau nhãn — cảm giác mượt/độc đáo hơn
+        // hẳn so với đổi hẳn màu nền 2 nút riêng biệt.
+        float targetX = install ? 0f : tabIndicatorWidth;
+        tabIndicator.animate()
+                .translationX(targetX)
+                .setDuration(220)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                .start();
+
+        tabInstall.setTextColor(install ? 0xFF0b0800 : 0xFFa0c8ee);
+        tabCreate.setTextColor(install ? 0xFFa0c8ee : 0xFF0b0800);
+
+        if (!install && !createModPageLoaded) {
+            setupCreateModWebView();
+            createModPageLoaded = true;
+        }
+    }
+
+    /**
+     * Nhúng thẳng trang builder thật trên web (WebView) — khoá cứng theme
+     * Nod-Krai, ẩn bảng chọn 7 theme, và khử các dấu hiệu "đây là web"
+     * (tap-highlight, overscroll glow, zoom, chớp nền trắng lúc tải) để cảm
+     * giác liền mạch với phần native xung quanh — không phải bê nguyên
+     * trình duyệt vào app.
+     */
+    @SuppressLint("SetJavaScriptEnabled")
+    private void setupCreateModWebView() {
+        createModLoading.setVisibility(View.VISIBLE);
+
+        createModWebView.setBackgroundColor(Color.parseColor("#060b12")); // khớp nền app — không chớp trắng lúc tải
+        createModWebView.getSettings().setJavaScriptEnabled(true);
+        createModWebView.getSettings().setDomStorageEnabled(true); // trang web dùng localStorage lưu theme
+        createModWebView.getSettings().setMediaPlaybackRequiresUserGesture(false); // cho preview tự phát khi user bấm trong trang
+        createModWebView.getSettings().setSupportZoom(false);
+        createModWebView.getSettings().setBuiltInZoomControls(false);
+        createModWebView.setOverScrollMode(View.OVER_SCROLL_NEVER); // bỏ hiệu ứng "dội" khi cuộn hết trang — dấu hiệu rõ nhất của web
+        createModWebView.setVerticalScrollBarEnabled(false);
+        createModWebView.setHorizontalScrollBarEnabled(false);
+
+        createModWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                injectAppFeelTweaks(view);
+                createModLoading.setVisibility(View.GONE);
+            }
+
+            @Override
+            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                super.onReceivedError(view, errorCode, description, failingUrl);
+                runOnUiThread(() -> {
+                    createModLoading.setVisibility(View.GONE);
+                    Toast.makeText(MainActivity.this, "Không tải được trang tạo mod: " + description, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+
+        createModWebView.loadUrl(AppConfig.WEB_BASE_URL);
+    }
+
+    /**
+     * Tiêm sau khi trang tải xong: khoá theme về Nod-Krai (snezhnaya), ẩn
+     * hẳn bảng chọn 7 theme (không xoá code — chỉ ẩn qua CSS, để không đụng
+     * vào logic web), và tắt các hiệu ứng đặc trưng của trình duyệt (bôi đen
+     * chọn chữ, highlight khi chạm, popup giữ-lâu) — CHỪA lại khả năng gõ/
+     * chọn chữ trong ô tìm kiếm, không thì người dùng không gõ được gì.
+     */
+    private void injectAppFeelTweaks(WebView view) {
+        String js = "(function(){"
+                + "try{ if (typeof setTheme === 'function') setTheme('snezhnaya'); }catch(e){}"
+                + "var s = document.createElement('style');"
+                + "s.textContent = "
+                + "'#themePanel > .panel-title, #themePanel .theme-grid { display:none !important; }"
+                + "* { -webkit-tap-highlight-color: transparent !important; -webkit-touch-callout: none !important; }"
+                + "body, div, span, button { -webkit-user-select: none !important; user-select: none !important; }"
+                + "input, textarea { -webkit-user-select: text !important; user-select: text !important; }';"
+                + "document.head.appendChild(s);"
+                + "})();";
+        view.evaluateJavascript(js, null);
     }
 
     private void toggleOverlay() {
