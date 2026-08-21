@@ -162,6 +162,12 @@ public class MainActivity extends AppCompatActivity {
             btnRequestPermission.setOnClickListener(v -> shizukuHelper.requestPermission());
             shizukuHelper.checkAndNotify();
         }
+
+        // Tải sẵn trang "Tạo Mod" ngay từ lúc mở app — pageCreate đang ẩn
+        // (visibility=gone) nên người dùng không thấy gì, chỉ khi họ bấm tab
+        // mới lộ ra, lúc đó (nếu đã tải xong) sẽ gần như tức thì thay vì phải
+        // đợi 7-8s Chromium cold-start + tải trang ngay lúc bấm.
+        preloadCreateModWebView();
     }
 
     /**
@@ -304,11 +310,9 @@ public class MainActivity extends AppCompatActivity {
 
         tabInstall.setTextColor(install ? 0xFF0b0800 : 0xFFa0c8ee);
         tabCreate.setTextColor(install ? 0xFFa0c8ee : 0xFF0b0800);
-
-        if (!install && !createModPageLoaded) {
-            setupCreateModWebView();
-            createModPageLoaded = true;
-        }
+        // KHÔNG còn khởi tạo WebView ở đây nữa — đã tải sẵn từ lúc mở app
+        // (xem preloadCreateModWebView(), gọi trong onCreate) để tránh khoảng
+        // trễ Chromium cold-start + tải trang lộ ra đúng lúc người dùng bấm tab.
     }
 
     /**
@@ -317,9 +321,16 @@ public class MainActivity extends AppCompatActivity {
      * (tap-highlight, overscroll glow, zoom, chớp nền trắng lúc tải) để cảm
      * giác liền mạch với phần native xung quanh — không phải bê nguyên
      * trình duyệt vào app.
+     *
+     * GỌI NGAY LÚC MỞ APP (không đợi user bấm tab "Tạo Mod"), vì phần lớn
+     * độ trễ thực đo được (~7-8s) không đến từ mạng (trình duyệt ngoài tải
+     * <1s) mà từ việc engine Chromium bên trong WebView phải khởi động lần
+     * đầu (cold-start) — dồn hết vào đúng lúc user bấm tab thì mới thấy
+     * giật. Tải sẵn ẩn phía sau trong lúc user còn thao tác ở trang "Cài
+     * Mod" thì thời gian đó gần như vô hình.
      */
     @SuppressLint("SetJavaScriptEnabled")
-    private void setupCreateModWebView() {
+    private void preloadCreateModWebView() {
         createModLoading.setVisibility(View.VISIBLE);
 
         createModWebView.setBackgroundColor(Color.parseColor("#060b12")); // khớp nền app — không chớp trắng lúc tải
@@ -328,6 +339,7 @@ public class MainActivity extends AppCompatActivity {
         createModWebView.getSettings().setMediaPlaybackRequiresUserGesture(false); // cho preview tự phát khi user bấm trong trang
         createModWebView.getSettings().setSupportZoom(false);
         createModWebView.getSettings().setBuiltInZoomControls(false);
+        createModWebView.getSettings().setCacheMode(android.webkit.WebSettings.LOAD_DEFAULT); // dùng cache HTTP bình thường — lần mở SAU (kể cả sau khi tắt app) đỡ phải tải lại y nguyên
         createModWebView.setOverScrollMode(View.OVER_SCROLL_NEVER); // bỏ hiệu ứng "dội" khi cuộn hết trang — dấu hiệu rõ nhất của web
         createModWebView.setVerticalScrollBarEnabled(false);
         createModWebView.setHorizontalScrollBarEnabled(false);
@@ -338,6 +350,7 @@ public class MainActivity extends AppCompatActivity {
                 super.onPageFinished(view, url);
                 injectAppFeelTweaks(view);
                 createModLoading.setVisibility(View.GONE);
+                createModPageLoaded = true;
             }
 
             @Override
@@ -345,7 +358,12 @@ public class MainActivity extends AppCompatActivity {
                 super.onReceivedError(view, errorCode, description, failingUrl);
                 runOnUiThread(() -> {
                     createModLoading.setVisibility(View.GONE);
-                    Toast.makeText(MainActivity.this, "Không tải được trang tạo mod: " + description, Toast.LENGTH_LONG).show();
+                    // Chỉ báo lỗi nếu người dùng ĐANG ở trang Tạo Mod — lỗi mạng
+                    // lúc tải ẩn phía sau (chưa ai bấm tab) không cần làm phiền
+                    // ngay, sẽ tự báo lại khi họ thực sự mở tab đó ra.
+                    if (pageCreate.getVisibility() == View.VISIBLE) {
+                        Toast.makeText(MainActivity.this, "Không tải được trang tạo mod: " + description, Toast.LENGTH_LONG).show();
+                    }
                 });
             }
         });
