@@ -1,4 +1,4 @@
-name: Build debug APK
+name: Build Melo Ninstaller APK
 
 on:
   workflow_dispatch: {}
@@ -39,12 +39,12 @@ jobs:
         with:
           gradle-version: '8.5'
 
-      - name: Build debug APK
+      - name: Build APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
       # Đổi tên file .apk gốc (thường dạng app-debug.apk) thành tên hiển thị
-      # mong muốn — chỉ đổi TÊN FILE, không đổi android:label trong app (label
-      # trong app vẫn đang là "Echohall Installer" trừ khi bạn tự sửa AndroidManifest).
+      # mong muốn — chỉ đổi TÊN FILE, android:label trong AndroidManifest đã
+      # là "Melo Ninstaller" từ trước, khớp nhau.
       - name: Rename APK to "Melo Ninstaller.apk"
         run: |
           mkdir -p release-out
@@ -61,15 +61,23 @@ jobs:
 
       # Tự tạo 1 GitHub Release mới cho mỗi lần build, đính kèm file .apk để
       # tải trực tiếp từ tab Releases (không cần vào Actions > Artifacts).
-      # Bản debug key (chưa ký release) — nếu sau này có keystore riêng, thêm
-      # bước ký (jarsigner/apksigner) trước bước này rồi release bản đã ký.
+      #
+      # LƯU Ý QUAN TRỌNG: dù app giờ là bản CHÍNH THỨC (v1.0.0, không còn
+      # test), file .apk build ra ở đây VẪN đang ký bằng debug key mặc định
+      # của Android Gradle Plugin — chưa có keystore release riêng. Ký bằng
+      # debug key vẫn cài/dùng được bình thường, nhưng: (1) không đúng chuẩn
+      # phát hành chính thức, (2) mỗi máy build lại có thể dùng debug
+      # keystore khác nhau → cài đè lên bản cũ có thể lỗi "chữ ký không khớp"
+      # nếu build ở máy/runner khác. Nếu cần phát hành thật sự ổn định lâu
+      # dài, nên tạo keystore riêng, lưu vào GitHub Secrets, và thêm bước ký
+      # (apksigner) trước bước release này.
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: "Melo Ninstaller build #${{ github.run_number }}"
+          tag_name: v1.0.0-${{ github.run_number }}
+          name: "Melo Ninstaller v1.0.0 (build #${{ github.run_number }})"
           body: |
-            Build tự động từ commit ${{ github.sha }}.
-            Bản debug key — chưa ký release, chỉ dùng để test.
+            Bản chính thức v1.0.0 — build tự động từ commit ${{ github.sha }}.
+            Lưu ý: vẫn ký bằng debug key (chưa có keystore release riêng).
           files: release-out/Melo Ninstaller.apk
 
