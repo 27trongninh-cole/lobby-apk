@@ -10,6 +10,8 @@ import android.util.Base64;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
@@ -98,6 +100,26 @@ public class MainActivity extends AppCompatActivity {
                 tvSelectedFile.setText(uri.getLastPathSegment());
                 updateInstallButtonEnabled();
                 loadPreview(uri);
+            });
+
+    // Callback WebView đang chờ để nhận kết quả chọn file (từ thẻ <input
+    // type="file"> trên trang web, vd. "tải video của tôi lên"). Phải luôn
+    // được gọi (kể cả khi user huỷ, gọi với null) — không thì trang web sẽ
+    // treo mãi, không bấm chọn file lần 2 được nữa.
+    private ValueCallback<Uri[]> pendingFileChooserCallback;
+
+    // ACTION_OPEN_DOCUMENT (app "Tệp"/Files thật) — CỐ Ý không dùng
+    // ACTION_GET_CONTENT, vì trên nhiều máy Android 13+, ACTION_GET_CONTENT
+    // với mime video/ảnh bị hệ thống tự chuyển sang "Photo Picker" (giao
+    // diện gallery, tìm kiếm/duyệt file cụ thể rất tệ trên nhiều dòng máy) —
+    // đúng vấn đề bạn gặp. ACTION_OPEN_DOCUMENT luôn mở đúng trình duyệt file
+    // hệ thống, không bị máy nào tự đổi qua gallery.
+    private final ActivityResultLauncher<String[]> webFilePickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+                ValueCallback<Uri[]> cb = pendingFileChooserCallback;
+                pendingFileChooserCallback = null;
+                if (cb == null) return;
+                cb.onReceiveValue(uri == null ? null : new Uri[]{uri});
             });
 
     @Override
@@ -374,6 +396,37 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(MainActivity.this, "Không tải được trang tạo mod: " + description, Toast.LENGTH_LONG).show();
                     }
                 });
+            }
+        });
+
+        // Bắt buộc phải có WebChromeClient này để <input type="file"> trên
+        // trang web hoạt động — WebView KHÔNG tự hỗ trợ file input nếu không
+        // override onShowFileChooser. Thiếu class này là lý do "tải video
+        // của tôi" trên web hiện không phản hồi gì trong app.
+        createModWebView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback,
+                                              FileChooserParams fileChooserParams) {
+                // Nếu có 1 lượt chọn file khác đang chờ dở (hiếm khi xảy ra),
+                // phải huỷ nó trước bằng null — không thì callback cũ bị rò rỉ,
+                // không bao giờ được gọi lại.
+                if (pendingFileChooserCallback != null) {
+                    pendingFileChooserCallback.onReceiveValue(null);
+                }
+                pendingFileChooserCallback = filePathCallback;
+
+                String[] acceptTypes = fileChooserParams.getAcceptTypes();
+                String mimeType = (acceptTypes != null && acceptTypes.length > 0 && !acceptTypes[0].isEmpty())
+                        ? acceptTypes[0] : "video/*"; // trang web hiện chỉ dùng input này để nhận video
+
+                try {
+                    webFilePickerLauncher.launch(new String[]{mimeType});
+                } catch (Exception e) {
+                    pendingFileChooserCallback = null;
+                    filePathCallback.onReceiveValue(null);
+                    Toast.makeText(MainActivity.this, "Không mở được trình chọn file: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                }
+                return true;
             }
         });
 
