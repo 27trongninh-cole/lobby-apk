@@ -1,99 +1,72 @@
-# Echohall Installer — bản khung test (giai đoạn: chỉ cài mod)
+# Melo Ninstaller — bản "cài trực tiếp" (không qua zip/WebView)
 
-## Phạm vi bản này
-APK này CHỈ làm nhiệm vụ cài/gỡ mod từ file zip đã tải sẵn từ web
-(theo quyết định đã thống nhất: tạo mod vẫn làm trên web, APK chỉ cài).
+## Thay đổi so với bản trước
+Bản trước có 2 tab: "Cài Mod" (native, chọn file .zip đã tải sẵn từ web) và
+"Tạo Mod" (nhúng WebView load thẳng trang web builder — đây là phần gây lag,
+vì phải cold-start Chromium + tải cả trang web).
 
-`ApiClient.java` và `PreviewDecoder.java` (gọi API web, nghe thử nhạc) đã
-viết khung sẵn từ trước nhưng **CHƯA được nối vào MainActivity** — vì web
-báo chưa hoàn thiện, tạm gác lại tính năng đó. Không xoá 2 file này vì sẽ
-dùng lại khi quay lại giai đoạn "build mod trong app".
+Bản này **gộp làm 1 màn hình, không còn zip và không còn WebView**:
+1. Người dùng chọn 1 bài nhạc (danh sách từ `/api/wem-list`, nghe thử qua
+   `/api/wem-preview/:id`) và 1 video (từ thư viện `/api/video-list`, hoặc tự
+   upload từ máy).
+2. Xem trước ngay trong app: video phát câm tiếng (loop) + nhạc phát riêng từ
+   `.wem` đã giải mã — y hệt cơ chế preview trên web.
+3. Bấm "📦 Cài Mod" → app tự gọi `POST /api/build` (multipart: `wemId` +
+   `videoId` hoặc file video) → nhận về zip bytes trong bộ nhớ → lưu tạm vào
+   cache app (`last_build.zip`) → đưa THẲNG vào `ModInstaller.installFromZip()`
+   để cài — người dùng không hề thấy bước file zip nào, không cần chọn file gì
+   thêm.
+4. Nút "🔁 Cài lại bản gần nhất" dùng lại `last_build.zip` trong cache, không
+   gọi lại server — hữu ích nếu muốn cài lại nhanh hoặc cài giữa chừng bị lỗi.
+5. "🗑️ Gỡ tất cả Mod" giữ nguyên logic cũ, không đổi gì.
 
-## Đã hoạt động trong bản này
-- Xin quyền Shizuku (`ShizukuPermissionHelper`)
-- Chọn file zip mod bằng Storage Access Framework
-- **Xem trước mod ngay sau khi chọn zip** (`ModPreviewLocator`): giải nén
-  tạm, tìm file `.wem` đầu tiên và file video đầu tiên trong zip, phát
-  video loop tắt tiếng + audio giải mã từ `.wem` (qua WebView ẩn chạy
-  `wemogg.js` — `PreviewDecoder`) phát riêng, đồng bộ gần đúng — có toggle
-  bật/tắt overlay UI mô phỏng giống trên web. KHÔNG đụng đến file trong
-  game, chỉ đọc từ zip đã chọn.
-- Giải nén zip, tự suy đường dẫn đích từ cấu trúc thư mục trong zip
-  (không cần khai báo trước danh sách file)
-- Backup từng file bị ghi đè bằng rename `<tên gốc> -> <tên gốc>.nins`,
-  quyết định dựa vào trạng thái filesystem thật (không phụ thuộc hoàn
-  toàn vào 1 manifest nội bộ dễ mất khi xoá data app)
-- Nhận diện riêng file mới cố định tên `30082005.wem` (không có gốc để
-  backup) để xoá thẳng khi gỡ mod — áp dụng cả lúc CÀI (không backup nhầm
-  file của chính app từ lần cài trước) lẫn lúc GỠ
-- "Fix ISPDiff" 1 lần duy nhất (`IspdiffFixer`) — khắc phục việc Android
-  chặn ghi file media (.mp4) không-root trong `Android/data/`, bằng cách
-  tạo lại thư mục do chính app sở hữu
-- Gỡ toàn bộ mod: khôi phục ISPDiff nguyên khối trước, sau đó quét/khôi
-  phục file lẻ ở phần còn lại — có loại trừ vùng đã xử lý xong để tránh
-  đụng lại
+`ApiClient.java` (gọi API web) và các phần cài/gỡ mod thật
+(`ModInstaller`/`ModBackupManager`/`IspdiffFixer`) đều **giữ nguyên logic**,
+chỉ khác nguồn `Uri` đưa vào `installFromZip()` — trước là file zip user tự
+chọn qua SAF, giờ là file zip build ra nằm trong cache riêng của app.
+
+Đã xoá `MainActivityWebStyle.java`, `ModPreviewLocator.java` và layout
+`activity_main_web_style.xml` (không còn dùng — luồng cũ đọc file/wem/video
+*bên trong 1 zip đã có sẵn*; giờ nhạc/video được chọn từ trước lúc build nên
+không cần dò tìm trong zip nữa).
 
 ## UI
-Chỉ có **1 Activity duy nhất** (`MainActivity`), theme **Nod-Krai** (xanh
-băng, lấy đúng bảng màu từ CSS `[data-theme="snezhnaya"]` trên web) —
-nút pill bo tròn, card viền mảnh, tái hiện ngôn ngữ thiết kế của web.
+Vẫn 1 Activity duy nhất (`MainActivity`), theme Nod-Krai (xanh băng) — pill bo
+tròn, card viền mảnh, style y hệt bản trước.
 
 ## Build APK bằng GitHub Actions (không cần Android Studio)
-
-1. Push toàn bộ nội dung thư mục này lên 1 repo GitHub (nhánh `main` hoặc `master`).
-2. Vào tab **Actions** trên GitHub → chọn workflow **"Build debug APK"** →
-   bấm **Run workflow** (hoặc tự chạy khi bạn push code, vì workflow đã
-   set trigger cả `push`).
-3. Đợi build xong (vài phút) → vào lượt chạy đó → mục **Artifacts** ở cuối
-   trang → tải file `echohall-installer-debug-apk` (đây là file `.apk`,
-   nén trong 1 zip do GitHub tự đóng gói artifact).
-4. Cài file `.apk` đó vào máy Android test (nhớ bật "Cài từ nguồn không
-   xác định" nếu máy chặn mặc định) — đây là bản debug, ký bằng debug
-   key mặc định của Android Gradle Plugin, không cần bạn tự tạo keystore
-   cho bản test.
-
-**Vì sao workflow không dùng `./gradlew`:** repo hiện chưa có sẵn
-`gradle/wrapper/gradle-wrapper.jar` (file nhị phân, không tạo được lúc
-soạn code ở môi trường không có mạng). Workflow dùng action
-`gradle/actions/setup-gradle` để cài thẳng Gradle 8.5 lên runner GitHub
-và chạy lệnh `gradle` trực tiếp — không ảnh hưởng gì đến kết quả build,
-chỉ khác cách gọi. Nếu muốn dùng `./gradlew` như dự án Android chuẩn,
-bạn có thể tự chạy `gradle wrapper` một lần trên máy có cài Gradle rồi
-commit thư mục `gradle/wrapper/` vào repo, sau đó sửa bước cuối trong
-`.github/workflows/build.yml` thành `./gradlew assembleDebug`.
-
-
-## Vì sao KHÔNG dùng `Environment.getExternalStorageDirectory()` là hack
-Đường dẫn này chỉ được ĐƯA VÀO LỆNH SHELL chạy qua Shizuku (quyền shell,
-nằm ngoài sandbox scoped storage) — app không tự mở file bằng
-`File`/`FileInputStream` trực tiếp vào đó, nên không bị chặn bởi scoped
-storage của Android 11+.
+Giữ nguyên hướng dẫn bản gốc:
+1. Push toàn bộ nội dung thư mục này lên 1 repo GitHub (nhánh `main`).
+2. Tab **Actions** → workflow **"Build debug APK"** → **Run workflow** (hoặc
+   tự chạy khi push).
+3. Đợi build xong → mục **Artifacts** → tải `echohall-installer-debug-apk`
+   (1 file zip do GitHub tự đóng gói, bên trong là `.apk`).
+4. Cài vào máy Android test (bật "Cài từ nguồn không xác định" nếu cần).
 
 ## CẦN LÀM TRƯỚC KHI TEST TRÊN MÁY THẬT
-1. Cài & chạy Shizuku trên máy test (theo hướng dẫn chính thức tại
-   shizuku.rikka.app, mục "Start via adb") — APK không tự khởi động
-   Shizuku được, đây là bước thủ công (trừ khi máy có root và dùng
-   Magisk module thì Shizuku tự khởi động cùng máy).
-2. Cài sẵn game Liên Quân (`com.garena.game.kgvn`) trên máy test, để có
-   sẵn thư mục `Android/data/com.garena.game.kgvn/files/...` cho app ghi vào.
+1. Cài & chạy Shizuku trên máy test (shizuku.rikka.app, mục "Start via adb").
+2. Cài sẵn game Liên Quân (`com.garena.game.kgvn`) trên máy test.
 3. Cài file `.apk` tải từ Artifacts vào máy.
+4. Máy test có mạng ổn định — bấm "Cài Mod" sẽ gọi server Render
+   (`melodinity.onrender.com`) để build zip trước khi cài, cần vài giây tới
+   vài chục giây tuỳ dung lượng video.
 
-## Danh sách việc nên test kỹ trên máy thật (biết trước sẽ cần tối ưu)
-- Thời gian giải nén + cài khi zip có nhiều file cùng lúc (hiện chạy
-  tuần tự từng file qua Shizuku — có thể chậm nếu 1 lượt mod chứa vài
-  chục file, khi đó cân nhắc gộp nhiều lệnh cp/mv thành 1 lượt gọi
-  Shizuku thay vì gọi riêng từng file).
-- Hành vi khi Shizuku bị mất kết nối giữa chừng lúc đang cài (app hiện
-  chỉ bắt exception rồi báo lỗi, dừng — các file đã cài trước đó vẫn
-  đúng trạng thái, phần chưa cài thì thôi, không có file dở dang).
-- Test gỡ mod sau khi xoá data app (kiểm tra đúng cơ chế "nguồn sự thật
-  là filesystem" đã thiết kế — xoá data app rồi thử gỡ mod, xem có khôi
-  phục đúng không dù manifest nội bộ đã mất).
+## Danh sách việc nên test kỹ
+- Video tự upload dung lượng lớn (đọc hết vào RAM dưới dạng `byte[]` trước
+  khi gửi multipart — cân nhắc giới hạn dung lượng hoặc stream trực tiếp nếu
+  gặp OutOfMemory với video quá nặng).
+- Lỗi nghiệp vụ từ server (bài nhạc chưa có `duration_ms`, chưa có sảnh nào
+  đang bật...) — cần hiện đúng thông báo, đã có sẵn qua `ApiClient` trả về
+  `message` là `error` gốc từ server.
+- Preview video từ thư viện dùng thẳng `video_url` public (stream qua mạng),
+  khác với trước đây tải cả file về máy để đọc — cần mạng ổn định lúc xem
+  trước, nếu mạng yếu video có thể load chậm/giật (không ảnh hưởng chất lượng
+  file cài thật, chỉ ảnh hưởng preview).
+- Cài lại bản gần nhất sau khi tắt/mở lại app (cache app có bị hệ thống dọn
+  giữa chừng không, tuỳ chính sách cache của từng máy).
 
 ## Ý tưởng để SAU (chưa làm)
-- Tự kết nối ADB (wireless debugging) ngay trong app, bỏ phụ thuộc app
-  Shizuku ngoài — về mặt kỹ thuật khả thi (Shizuku mã nguồn mở, có thể
-  tham khảo lại logic tương tự) nhưng là 1 hạng mục lớn (tự làm client
-  ADB, xử lý pairing/key/kết nối bền vững), không phải việc nhỏ. Chỉ làm
-  sau khi luồng cài/gỡ mod qua Shizuku đã ổn định hoàn toàn qua nhiều máy
-  test.
+- Upload nhạc (.wav) rồi tự convert sang .wem ngay trong app/server (hiện tại
+  vẫn phải quản lý bài nhạc sẵn trong thư viện admin).
+- Giới hạn/nén video tự upload trước khi gửi lên server để giảm thời gian chờ
+  build với video dung lượng lớn.

@@ -53,6 +53,10 @@ public class ApiClient {
     public static class VideoItem {
         public String id;
         public String name;
+        // /api/video-list trả thẳng URL công khai (Supabase Storage) — KHÔNG
+        // ẩn như wem_url, nên có thể phát trực tiếp trong VideoView để preview.
+        public String videoUrl;
+        public String thumbnailUrl;
     }
 
     public static class BuildResult {
@@ -110,6 +114,8 @@ public class ApiClient {
                     VideoItem v = new VideoItem();
                     v.id = o.optString("id");
                     v.name = o.optString("name");
+                    v.videoUrl = o.optString("video_url", null);
+                    v.thumbnailUrl = o.optString("thumbnail_url", null);
                     out.add(v);
                 }
                 postSuccess(cb, out);
