@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#060b12"
+    android:paddingTop="18dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🧾 Log debug"
+        android:textColor="#a0c8ee"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:paddingHorizontal="18dp"
+        android:layout_marginBottom="12dp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="18dp">
+
+        <TextView
+            android:id="@+id/tvLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textSize="11sp"
+            android:textColor="#6a94b8"
+            android:text="" />
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/btnCloseLog"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_margin="14dp"
+        android:background="@drawable/web_ghost_pill"
+        android:text="Đóng"
+        android:textColor="#a0c8ee"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true" />
+
+</LinearLayout>

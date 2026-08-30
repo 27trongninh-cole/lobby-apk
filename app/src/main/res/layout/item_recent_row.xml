@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/picker_card_bg"
+    android:padding="9dp"
+    android:layout_marginBottom="6dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="↺"
+        android:textColor="#6a94b8"
+        android:textSize="13sp"
+        android:layout_marginEnd="9dp" />
+
+    <TextView
+        android:id="@+id/tvRecentName"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:text="Tên tổ hợp"
+        android:textColor="#d8eeff"
+        android:textSize="11sp"
+        android:ellipsize="end"
+        android:singleLine="true" />
+
+    <TextView
+        android:id="@+id/tvRecentTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="vừa xong"
+        android:textColor="#386080"
+        android:textSize="9sp" />
+
+</LinearLayout>

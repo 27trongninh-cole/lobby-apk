@@ -41,4 +41,11 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'com.google.android.material:material:1.11.0'
+
+    // Lưới chọn nhạc/video (thay AlertDialog.setItems bằng UI dạng lưới có
+    // thumbnail + tìm kiếm, giống trang web).
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    // Tải thumbnail_url (ảnh) cho lưới video, giống <img> trên web.
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
 }

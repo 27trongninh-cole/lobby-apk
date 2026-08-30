@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/picker_card_bg"
+    android:padding="6dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Tỉ lệ 16:9 y hệt .video-thumb trên web (aspect-ratio:16/9) — dùng
+         ConstraintLayout để khoá tỉ lệ theo đúng chiều rộng cột thật (item
+         không biết trước chiều rộng vì GridLayoutManager chia đều 2 cột lúc
+         runtime), tránh phải tính tay trong adapter. -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            app:layout_constraintDimensionRatio="16:9"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:id="@+id/ivVideoThumb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:background="@drawable/thumb_placeholder_bg" />
+
+        <TextView
+            android:id="@+id/tvVideoThumbFallback"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="🎬"
+            android:textSize="22sp"
+            android:background="@drawable/thumb_placeholder_bg"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/tvVideoName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#d8eeff"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="4dp"
+        android:text="Tên video" />
+
+</LinearLayout>

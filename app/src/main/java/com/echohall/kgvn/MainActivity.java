@@ -1,105 +1,120 @@
 package com.echohall.kgvn;
 
+import android.content.SharedPreferences;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.format.DateFormat;
+import android.text.format.DateUtils;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.VideoView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 /**
- * Màn hình chính — theme Nod-Krai (xanh băng).
+ * Màn hình chính — bản redesign v2 (1 màn hình cố định, không cuộn).
  *
- * BẢN NÀY: không còn khái niệm "tải zip / chọn zip" cho người dùng. Người
- * dùng chỉ chọn 1 bài nhạc + 1 video (từ thư viện web hoặc tự upload), bấm
- * "Cài Mod" — app tự gọi server build zip (ApiClient) rồi đưa THẲNG vào
- * ModInstaller để cài, không lộ bước file zip trung gian nào ra UI.
+ * Header gọn (logo + trạng thái Shizuku + nút góc phải), khung preview 16:9
+ * crop lấp đầy (giống object-fit:cover trên web, dùng CropVideoView), 2 thẻ
+ * chọn nhạc/video mở dialog picker riêng (list có tìm kiếm cho nhạc, lưới
+ * thumbnail có tìm kiếm cho video), khu "Cài gần đây" (lưu SharedPreferences,
+ * bấm để chọn lại nhanh tổ hợp cũ — chỉ áp dụng cho video lấy từ thư viện,
+ * video tự upload không lưu lại được vì Uri có thể mất quyền truy cập sau khi
+ * app khởi động lại), và cụm nút hành động dưới cùng.
  *
- * Bản zip build gần nhất được giữ lại trong cache app (last_build.zip) để
- * có thể "Cài lại bản gần nhất" mà không cần gọi lại server.
+ * Nút góc phải trên header hiện là icon Terminal (log debug) cho bản test.
+ * Khi build release chính thức, đổi hành vi tại đúng 1 chỗ — hàm
+ * {@link #onTopRightActionClicked()} — dựa vào BuildConfig.DEBUG, không cần
+ * đụng tới layout hay phần còn lại của Activity.
  */
 public class MainActivity extends AppCompatActivity {
 
-    private TextView tvShizukuDot;
-    private TextView tvShizukuLabel;
+    private static final String PREFS_NAME = "melo_ninstaller_prefs";
+    private static final String KEY_RECENT_LIST = "recent_installs_json";
+    private static final int MAX_RECENT = 3;
+
+    private View tvShizukuDotView;
     private TextView tvShizukuStatus;
-    private TextView tvLog;
-    private TextView tvProgressLabel;
-    private TextView tvHandleLogLabel;
-    private ProgressBar progressBar;
     private TextView btnRequestPermission;
-    private TextView btnInstall;
-    private TextView btnReinstallLast;
-    private TextView btnUninstallAll;
-    private View handleBarLog;
-    private View layoutLog;
+    private TextView btnTopRightAction;
 
-    // Chọn nhạc/video
     private TextView tvSelectedWem;
-    private TextView btnChooseWem;
-    private TextView btnPreviewWem;
     private TextView tvSelectedVideo;
-    private TextView btnChooseVideoLibrary;
-    private TextView btnChooseVideoUpload;
+    private View cardChooseWem;
+    private View cardChooseVideo;
 
-    // Preview
-    private FrameLayout previewVideoWrap;
-    private VideoView previewVideo;
+    private CropVideoView previewVideo;
     private ImageView previewOverlayImg;
     private View overlayToggleChip;
     private TextView tvOverlayToggleState;
     private View previewEmptyOverlay;
-    private TextView tvPreviewEmptyLabel;
-    private TextView tvPreviewCaption;
+    private TextView tvPreviewCaptionOverlay;
     private boolean overlayOn = true;
     private PreviewDecoder previewDecoder;
+
+    private TextView tvRecentLabel;
+    private LinearLayout layoutRecentList;
+
+    private ProgressBar progressBar;
+    private TextView tvProgressLabel;
+    private TextView btnInstall;
+    private TextView btnReinstallLast;
+    private TextView btnUninstallAll;
+
+    private StringBuilder logBuffer = new StringBuilder();
 
     private ShizukuPermissionHelper shizukuHelper;
     private ModInstaller modInstaller;
     private final ApiClient apiClient = new ApiClient();
 
-    // Trạng thái lựa chọn hiện tại
     private List<ApiClient.WemItem> wemLibrary;
     private List<ApiClient.VideoItem> videoLibrary;
     private ApiClient.WemItem selectedWem;
-    private ApiClient.VideoItem selectedVideoFromLibrary; // null nếu đang dùng video tự upload
-    private Uri selectedVideoUploadUri;                    // null nếu đang dùng video từ thư viện
+    private ApiClient.VideoItem selectedVideoFromLibrary;
+    private Uri selectedVideoUploadUri;
     private String selectedVideoUploadName;
 
     private ShizukuPermissionHelper.State currentShizukuState = ShizukuPermissionHelper.State.BINDER_NOT_AVAILABLE;
-    private boolean logExpanded = false;
     private boolean busy = false;
 
     private File lastBuildZipFile;
+    private SharedPreferences prefs;
 
     private final boolean isPreScopedStorage = Build.VERSION.SDK_INT < Build.VERSION_CODES.R;
 
-    // Chọn file video từ máy để tự upload (không lấy từ thư viện web).
     private final ActivityResultLauncher<String[]> pickVideoUploadLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
                 if (uri == null) return;
                 selectedVideoUploadUri = uri;
                 selectedVideoFromLibrary = null;
                 selectedVideoUploadName = queryDisplayName(uri);
-                tvSelectedVideo.setText("📁 " + selectedVideoUploadName);
+                tvSelectedVideo.setText(selectedVideoUploadName);
                 updateInstallButtonEnabled();
                 refreshPreview();
             });
@@ -109,48 +124,43 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        tvShizukuDot = findViewById(R.id.tvShizukuDot);
-        tvShizukuLabel = findViewById(R.id.tvShizukuLabel);
+        prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+
+        tvShizukuDotView = findViewById(R.id.tvShizukuDotView);
         tvShizukuStatus = findViewById(R.id.tvShizukuStatus);
-        tvLog = findViewById(R.id.tvLog);
-        tvProgressLabel = findViewById(R.id.tvProgressLabel);
-        tvHandleLogLabel = findViewById(R.id.tvHandleLogLabel);
-        progressBar = findViewById(R.id.progressBar);
         btnRequestPermission = findViewById(R.id.btnRequestPermission);
-        btnInstall = findViewById(R.id.btnInstall);
-        btnReinstallLast = findViewById(R.id.btnReinstallLast);
-        btnUninstallAll = findViewById(R.id.btnUninstallAll);
-        handleBarLog = findViewById(R.id.handleBarLog);
-        layoutLog = findViewById(R.id.layoutLog);
+        btnTopRightAction = findViewById(R.id.btnTopRightAction);
 
         tvSelectedWem = findViewById(R.id.tvSelectedWem);
-        btnChooseWem = findViewById(R.id.btnChooseWem);
-        btnPreviewWem = findViewById(R.id.btnPreviewWem);
         tvSelectedVideo = findViewById(R.id.tvSelectedVideo);
-        btnChooseVideoLibrary = findViewById(R.id.btnChooseVideoLibrary);
-        btnChooseVideoUpload = findViewById(R.id.btnChooseVideoUpload);
+        cardChooseWem = findViewById(R.id.cardChooseWem);
+        cardChooseVideo = findViewById(R.id.cardChooseVideo);
 
-        previewVideoWrap = findViewById(R.id.previewVideoWrap);
         previewVideo = findViewById(R.id.previewVideo);
         previewOverlayImg = findViewById(R.id.previewOverlayImg);
         overlayToggleChip = findViewById(R.id.overlayToggleChip);
         tvOverlayToggleState = findViewById(R.id.tvOverlayToggleState);
         previewEmptyOverlay = findViewById(R.id.previewEmptyOverlay);
-        tvPreviewEmptyLabel = findViewById(R.id.tvPreviewEmptyLabel);
-        tvPreviewCaption = findViewById(R.id.tvPreviewCaption);
+        tvPreviewCaptionOverlay = findViewById(R.id.tvPreviewCaptionOverlay);
+
+        tvRecentLabel = findViewById(R.id.tvRecentLabel);
+        layoutRecentList = findViewById(R.id.layoutRecentList);
+
+        progressBar = findViewById(R.id.progressBar);
+        tvProgressLabel = findViewById(R.id.tvProgressLabel);
+        btnInstall = findViewById(R.id.btnInstall);
+        btnReinstallLast = findViewById(R.id.btnReinstallLast);
+        btnUninstallAll = findViewById(R.id.btnUninstallAll);
 
         modInstaller = new ModInstaller(this);
         previewDecoder = new PreviewDecoder(this, (ViewGroup) findViewById(android.R.id.content));
 
-        btnChooseWem.setOnClickListener(v -> openWemPickerDialog());
-        btnPreviewWem.setOnClickListener(v -> previewSelectedWemOnly());
-        btnChooseVideoLibrary.setOnClickListener(v -> openVideoLibraryDialog());
-        btnChooseVideoUpload.setOnClickListener(v ->
-                pickVideoUploadLauncher.launch(new String[]{"video/*"}));
+        cardChooseWem.setOnClickListener(v -> openWemPickerDialog());
+        cardChooseVideo.setOnClickListener(v -> openVideoPickerDialog());
+        btnTopRightAction.setOnClickListener(v -> onTopRightActionClicked());
         btnInstall.setOnClickListener(v -> onInstallClicked());
         btnReinstallLast.setOnClickListener(v -> onReinstallLastClicked());
         btnUninstallAll.setOnClickListener(v -> onUninstallAllClicked());
-        handleBarLog.setOnClickListener(v -> toggleLog());
         overlayToggleChip.setOnClickListener(v -> toggleOverlay());
 
         if (isPreScopedStorage) {
@@ -163,37 +173,39 @@ public class MainActivity extends AppCompatActivity {
 
         lastBuildZipFile = new File(getCacheDir(), "last_build.zip");
         updateReinstallButtonVisibility();
+        renderRecentList();
 
         loadLibraries();
     }
 
-    private void setupPreScopedStorageUi() {
-        tvShizukuDot.setTextColor(0xFF80c8f8);
-        tvShizukuLabel.setText("Android");
-        tvShizukuStatus.setText("API " + Build.VERSION.SDK_INT + " (không cần Shizuku)");
-        btnRequestPermission.setVisibility(View.GONE);
-        setActionButtonsLocked(false);
+    // ─────────────────────────── Nút góc phải (log debug / sau này Settings) ───────────────────────────
+
+    private void onTopRightActionClicked() {
+        // TODO(bản release): if (!BuildConfig.DEBUG) { mở SettingsActivity (sáng/tối,
+        // ngôn ngữ, tài khoản) thay vì log; return; }
+        showLogDialog();
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (!isPreScopedStorage && shizukuHelper != null) {
-            shizukuHelper.checkAndNotify();
+    private void showLogDialog() {
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_log, null);
+        TextView tvLog = view.findViewById(R.id.tvLog);
+        tvLog.setText(logBuffer.toString());
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(view)
+                .create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
+        view.findViewById(R.id.btnCloseLog).setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (shizukuHelper != null) {
-            shizukuHelper.unregister();
-        }
-        stopPreview();
-        previewDecoder.destroy();
+    private void log(String message) {
+        String time = DateFormat.format("HH:mm:ss", new Date()).toString();
+        logBuffer.append("[").append(time).append("] ").append(message).append("\n");
     }
 
-    // ─────────────────────────── Thư viện nhạc/video ───────────────────────────
+    // ─────────────────────────── Thư viện + picker dialog ───────────────────────────
 
     private void loadLibraries() {
         log("Đang tải thư viện nhạc/video từ server...");
@@ -232,42 +244,154 @@ public class MainActivity extends AppCompatActivity {
             loadLibraries();
             return;
         }
-        String[] names = new String[wemLibrary.size()];
-        for (int i = 0; i < wemLibrary.size(); i++) names[i] = wemLibrary.get(i).name;
 
-        new AlertDialog.Builder(this)
-                .setTitle("Chọn bài nhạc")
-                .setItems(names, (dialog, which) -> {
-                    selectedWem = wemLibrary.get(which);
-                    tvSelectedWem.setText("🎵 " + selectedWem.name);
-                    btnPreviewWem.setAlpha(1f);
-                    updateInstallButtonEnabled();
-                    refreshPreview();
-                })
-                .setNegativeButton("Đóng", null)
-                .show();
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_picker, null);
+        ((TextView) view.findViewById(R.id.tvPickerTitle)).setText("Chọn bài nhạc");
+        EditText search = view.findViewById(R.id.etPickerSearch);
+        search.setHint("Tìm bài nhạc...");
+        RecyclerView rv = view.findViewById(R.id.rvPickerList);
+        View emptyView = view.findViewById(R.id.tvPickerEmpty);
+        rv.setLayoutManager(new LinearLayoutManager(this));
+
+        AlertDialog dialog = new AlertDialog.Builder(this).setView(view).create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        WemListAdapter adapter = new WemListAdapter(wemLibrary, selectedWem == null ? null : selectedWem.id,
+                new WemListAdapter.Listener() {
+                    @Override
+                    public void onSelect(ApiClient.WemItem item) {
+                        selectedWem = item;
+                        tvSelectedWem.setText(item.name);
+                        updateInstallButtonEnabled();
+                        refreshPreview();
+                        dialog.dismiss();
+                    }
+
+                    @Override
+                    public void onPlayPreview(ApiClient.WemItem item, TextView playButton) {
+                        playButton.setText("…");
+                        apiClient.fetchWemPreviewBytes(item.id, new ApiClient.Callback<byte[]>() {
+                            @Override
+                            public void onSuccess(byte[] result) {
+                                runOnUiThread(() -> playButton.setText("▶"));
+                                previewDecoder.playWem(result, new PreviewDecoder.PlaybackCallback() {
+                                    @Override
+                                    public void onPlaybackStarted() {
+                                    }
+
+                                    @Override
+                                    public void onError(String message) {
+                                        runOnUiThread(() -> log("⚠ Nghe thử lỗi: " + message));
+                                    }
+                                });
+                            }
+
+                            @Override
+                            public void onError(String message) {
+                                runOnUiThread(() -> {
+                                    playButton.setText("▶");
+                                    Toast.makeText(MainActivity.this, "Lỗi tải nhạc thử: " + message, Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        });
+                    }
+                });
+        rv.setAdapter(adapter);
+
+        search.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int a, int b, int c) {
+                adapter.filter(s.toString());
+                emptyView.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
+                rv.setVisibility(adapter.isEmpty() ? View.GONE : View.VISIBLE);
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+            }
+        });
+
+        view.findViewById(R.id.btnPickerClose).setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
     }
 
-    private void openVideoLibraryDialog() {
+    private void openVideoPickerDialog() {
         if (videoLibrary == null || videoLibrary.isEmpty()) {
             Toast.makeText(this, "Chưa tải được danh sách video, thử lại sau.", Toast.LENGTH_SHORT).show();
             loadLibraries();
             return;
         }
-        String[] names = new String[videoLibrary.size()];
-        for (int i = 0; i < videoLibrary.size(); i++) names[i] = videoLibrary.get(i).name;
 
-        new AlertDialog.Builder(this)
-                .setTitle("Chọn video (thư viện)")
-                .setItems(names, (dialog, which) -> {
-                    selectedVideoFromLibrary = videoLibrary.get(which);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_picker, null);
+        ((TextView) view.findViewById(R.id.tvPickerTitle)).setText("Chọn video");
+        EditText search = view.findViewById(R.id.etPickerSearch);
+        search.setHint("Tìm video...");
+        RecyclerView rv = view.findViewById(R.id.rvPickerList);
+        View emptyView = view.findViewById(R.id.tvPickerEmpty);
+        rv.setLayoutManager(new GridLayoutManager(this, 2));
+
+        AlertDialog dialog = new AlertDialog.Builder(this).setView(view).create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        VideoGridAdapter adapter = new VideoGridAdapter(videoLibrary,
+                selectedVideoFromLibrary == null ? null : selectedVideoFromLibrary.id,
+                item -> {
+                    selectedVideoFromLibrary = item;
                     selectedVideoUploadUri = null;
-                    tvSelectedVideo.setText("📚 " + selectedVideoFromLibrary.name);
+                    tvSelectedVideo.setText(item.name);
                     updateInstallButtonEnabled();
                     refreshPreview();
-                })
-                .setNegativeButton("Đóng", null)
-                .show();
+                    dialog.dismiss();
+                });
+        rv.setAdapter(adapter);
+
+        search.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int a, int b, int c) {
+                adapter.filter(s.toString());
+                emptyView.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
+                rv.setVisibility(adapter.isEmpty() ? View.GONE : View.VISIBLE);
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+            }
+        });
+
+        // Nút phụ: tự upload video từ máy thay vì chọn từ thư viện — chèn
+        // thêm 1 dòng trên nút Đóng thay vì tìm cách nhồi vào lưới.
+        TextView btnUpload = new TextView(this);
+        btnUpload.setText("⬆️  Tải video từ máy lên");
+        btnUpload.setTextColor(0xFFa0c8ee);
+        btnUpload.setTypeface(null, android.graphics.Typeface.BOLD);
+        btnUpload.setTextSize(12f);
+        btnUpload.setGravity(android.view.Gravity.CENTER);
+        btnUpload.setBackgroundResource(R.drawable.web_ghost_pill);
+        btnUpload.setPadding(0, 28, 0, 28);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(42, 0, 42, 14);
+        btnUpload.setLayoutParams(lp);
+        btnUpload.setOnClickListener(v -> {
+            dialog.dismiss();
+            pickVideoUploadLauncher.launch(new String[]{"video/*"});
+        });
+        ((LinearLayout) view).addView(btnUpload, ((LinearLayout) view).indexOfChild(view.findViewById(R.id.btnPickerClose)));
+
+        view.findViewById(R.id.btnPickerClose).setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
     }
 
     private String queryDisplayName(Uri uri) {
@@ -283,57 +407,25 @@ public class MainActivity extends AppCompatActivity {
 
     // ─────────────────────────── Preview (nhạc + video đã chọn) ───────────────────────────
 
-    private void previewSelectedWemOnly() {
-        if (selectedWem == null) return;
-        Toast.makeText(this, "Đang tải nhạc thử...", Toast.LENGTH_SHORT).show();
-        apiClient.fetchWemPreviewBytes(selectedWem.id, new ApiClient.Callback<byte[]>() {
-            @Override
-            public void onSuccess(byte[] result) {
-                previewDecoder.playWem(result, new PreviewDecoder.PlaybackCallback() {
-                    @Override
-                    public void onPlaybackStarted() {
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        runOnUiThread(() -> log("⚠ Nghe thử lỗi: " + message));
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String message) {
-                log("✗ Lỗi tải nhạc thử: " + message);
-                Toast.makeText(MainActivity.this, "Lỗi tải nhạc thử: " + message, Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-
-    /**
-     * Xem trước cả nhạc + video đã chọn cùng lúc — video phát câm tiếng (URL
-     * trực tiếp từ thư viện, hoặc file cục bộ nếu tự upload), audio phát riêng
-     * từ .wem qua PreviewDecoder, y hệt cơ chế trên web.
-     */
     private void refreshPreview() {
         boolean hasVideo = selectedVideoFromLibrary != null || selectedVideoUploadUri != null;
         boolean hasWem = selectedWem != null;
         if (!hasVideo && !hasWem) return;
 
         stopPreview();
-        previewVideoWrap.setVisibility(View.VISIBLE);
-        tvPreviewCaption.setVisibility(View.VISIBLE);
         previewEmptyOverlay.setVisibility(View.VISIBLE);
-        tvPreviewEmptyLabel.setText("Đang tải preview...");
 
         if (hasVideo) {
             Uri videoUri = selectedVideoUploadUri != null
                     ? selectedVideoUploadUri
                     : Uri.parse(selectedVideoFromLibrary.videoUrl == null ? "" : selectedVideoFromLibrary.videoUrl);
             try {
+                previewVideo.clearVideoAspectRatio();
                 previewVideo.setVideoURI(videoUri);
                 previewVideo.setOnPreparedListener(mp -> {
-                    mp.setVolume(0f, 0f); // câm tiếng — audio phát riêng từ .wem
+                    mp.setVolume(0f, 0f);
                     mp.setLooping(true);
+                    previewVideo.setVideoAspectRatio(mp.getVideoWidth(), mp.getVideoHeight());
                     previewVideo.start();
                     previewEmptyOverlay.setVisibility(View.GONE);
                 });
@@ -349,7 +441,26 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (hasWem) {
-            previewSelectedWemOnly();
+            apiClient.fetchWemPreviewBytes(selectedWem.id, new ApiClient.Callback<byte[]>() {
+                @Override
+                public void onSuccess(byte[] result) {
+                    previewDecoder.playWem(result, new PreviewDecoder.PlaybackCallback() {
+                        @Override
+                        public void onPlaybackStarted() {
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            runOnUiThread(() -> log("⚠ Nghe thử lỗi: " + message));
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(String message) {
+                    log("✗ Lỗi tải nhạc thử: " + message);
+                }
+            });
         }
     }
 
@@ -386,7 +497,6 @@ public class MainActivity extends AppCompatActivity {
         log("Bắt đầu build mod: nhạc=" + selectedWem.name);
 
         if (selectedVideoUploadUri != null) {
-            // Đọc bytes video tự upload trong luồng nền trước khi gọi API.
             new Thread(() -> {
                 try {
                     byte[] videoBytes = readAllBytesFromUri(selectedVideoUploadUri);
@@ -418,7 +528,7 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 updateReinstallButtonVisibility();
-                installFromCachedZip("Đang cài vào game...");
+                installFromCachedZip("Đang cài vào game...", true);
             }
 
             @Override
@@ -441,10 +551,10 @@ public class MainActivity extends AppCompatActivity {
         }
         setBusyUi(true, "Đang cài lại bản gần nhất...");
         log("Cài lại từ cache (không gọi server): " + lastBuildZipFile.getName());
-        installFromCachedZip("Đang cài lại bản gần nhất...");
+        installFromCachedZip("Đang cài lại bản gần nhất...", false);
     }
 
-    private void installFromCachedZip(String initialStatusLabel) {
+    private void installFromCachedZip(String initialStatusLabel, boolean saveToRecent) {
         tvProgressLabel.setText(initialStatusLabel);
         modInstaller.installFromZip(Uri.fromFile(lastBuildZipFile), new ModInstaller.ProgressListener() {
             @Override
@@ -452,7 +562,7 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     int percent = total == 0 ? 0 : (int) (100.0 * current / total);
                     progressBar.setProgress(percent);
-                    tvProgressLabel.setText("Đang cài (" + current + "/" + total + "): " + currentFileName);
+                    tvProgressLabel.setText("Đang cài (" + current + "/" + total + ")");
                     log("→ Cài: " + currentFileName);
                 });
             }
@@ -476,6 +586,7 @@ public class MainActivity extends AppCompatActivity {
                     setBusyUi(false, null);
                     log("✓ Hoàn tất — đã cài " + installedCount + " file.");
                     Toast.makeText(MainActivity.this, "Cài mod thành công (" + installedCount + " file)", Toast.LENGTH_LONG).show();
+                    if (saveToRecent) saveCurrentSelectionToRecent();
                 });
             }
 
@@ -547,6 +658,93 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // ─────────────────────────── "Cài gần đây" (SharedPreferences) ───────────────────────────
+    // Chỉ lưu được tổ hợp dùng video TỪ THƯ VIỆN (có id ổn định). Video tự
+    // upload không lưu lại vào lịch sử vì Uri của SAF picker không đảm bảo
+    // còn quyền đọc được sau khi app khởi động lại.
+
+    private void saveCurrentSelectionToRecent() {
+        if (selectedWem == null || selectedVideoFromLibrary == null) return;
+        try {
+            JSONArray arr = readRecentArray();
+            JSONObject entry = new JSONObject();
+            entry.put("wemId", selectedWem.id);
+            entry.put("wemName", selectedWem.name);
+            entry.put("videoId", selectedVideoFromLibrary.id);
+            entry.put("videoName", selectedVideoFromLibrary.name);
+            entry.put("displayName", selectedVideoFromLibrary.name + " x " + selectedWem.name);
+            entry.put("timestamp", System.currentTimeMillis());
+
+            JSONArray newArr = new JSONArray();
+            newArr.put(entry);
+            for (int i = 0; i < arr.length() && newArr.length() < MAX_RECENT; i++) {
+                JSONObject old = arr.getJSONObject(i);
+                if (old.optString("wemId").equals(selectedWem.id)
+                        && old.optString("videoId").equals(selectedVideoFromLibrary.id)) continue;
+                newArr.put(old);
+            }
+            prefs.edit().putString(KEY_RECENT_LIST, newArr.toString()).apply();
+            renderRecentList();
+        } catch (Exception e) {
+            log("⚠ Không lưu được lịch sử cài gần đây: " + e.getMessage());
+        }
+    }
+
+    private JSONArray readRecentArray() {
+        try {
+            String raw = prefs.getString(KEY_RECENT_LIST, "[]");
+            return new JSONArray(raw);
+        } catch (Exception e) {
+            return new JSONArray();
+        }
+    }
+
+    private void renderRecentList() {
+        layoutRecentList.removeAllViews();
+        JSONArray arr = readRecentArray();
+        if (arr.length() == 0) {
+            tvRecentLabel.setVisibility(View.GONE);
+            return;
+        }
+        tvRecentLabel.setVisibility(View.VISIBLE);
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject entry = arr.optJSONObject(i);
+            if (entry == null) continue;
+            View row = LayoutInflater.from(this).inflate(R.layout.item_recent_row, layoutRecentList, false);
+            ((TextView) row.findViewById(R.id.tvRecentName)).setText(entry.optString("displayName"));
+            long ts = entry.optLong("timestamp", 0);
+            ((TextView) row.findViewById(R.id.tvRecentTime)).setText(
+                    ts > 0 ? DateUtils.getRelativeTimeSpanString(ts).toString() : "");
+            row.setOnClickListener(v -> applyRecentEntry(entry));
+            layoutRecentList.addView(row);
+        }
+    }
+
+    private void applyRecentEntry(JSONObject entry) {
+        if (wemLibrary == null || videoLibrary == null) {
+            Toast.makeText(this, "Thư viện chưa tải xong, thử lại sau.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String wemId = entry.optString("wemId");
+        String videoId = entry.optString("videoId");
+        ApiClient.WemItem foundWem = null;
+        for (ApiClient.WemItem w : wemLibrary) if (w.id != null && w.id.equals(wemId)) foundWem = w;
+        ApiClient.VideoItem foundVideo = null;
+        for (ApiClient.VideoItem v : videoLibrary) if (v.id != null && v.id.equals(videoId)) foundVideo = v;
+
+        if (foundWem == null || foundVideo == null) {
+            Toast.makeText(this, "Nhạc/video này không còn trong thư viện (đã bị admin xoá hoặc đổi).", Toast.LENGTH_LONG).show();
+            return;
+        }
+        selectedWem = foundWem;
+        selectedVideoFromLibrary = foundVideo;
+        selectedVideoUploadUri = null;
+        tvSelectedWem.setText(selectedWem.name);
+        tvSelectedVideo.setText(selectedVideoFromLibrary.name);
+        updateInstallButtonEnabled();
+        refreshPreview();
+    }
+
     // ─────────────────────────── Overlay preview toggle ───────────────────────────
 
     private void toggleOverlay() {
@@ -565,26 +763,56 @@ public class MainActivity extends AppCompatActivity {
 
     // ─────────────────────────── Shizuku ───────────────────────────
 
+    private void setupPreScopedStorageUi() {
+        setDotColor(0xFF80c8f8);
+        tvShizukuStatus.setText("API " + Build.VERSION.SDK_INT);
+        btnRequestPermission.setVisibility(View.GONE);
+        setActionButtonsLocked(false);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!isPreScopedStorage && shizukuHelper != null) {
+            shizukuHelper.checkAndNotify();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (shizukuHelper != null) {
+            shizukuHelper.unregister();
+        }
+        stopPreview();
+        previewDecoder.destroy();
+    }
+
+    private void setDotColor(int color) {
+        if (tvShizukuDotView.getBackground() instanceof GradientDrawable) {
+            ((GradientDrawable) tvShizukuDotView.getBackground().mutate()).setColor(color);
+        }
+    }
+
     private void onShizukuStateChanged(ShizukuPermissionHelper.State state) {
         currentShizukuState = state;
         switch (state) {
             case BINDER_NOT_AVAILABLE:
-                tvShizukuDot.setTextColor(0xFFe05a5a);
-                tvShizukuStatus.setText("Shizuku chưa chạy");
-                btnRequestPermission.setText("Kiểm tra");
-                btnRequestPermission.setAlpha(1f);
+                setDotColor(0xFFe05a5a);
+                tvShizukuStatus.setText("Chưa chạy");
+                btnRequestPermission.setText("Kiểm tra Shizuku");
+                btnRequestPermission.setVisibility(View.VISIBLE);
                 break;
             case PERMISSION_DENIED:
-                tvShizukuDot.setTextColor(0xFFe9c846);
+                setDotColor(0xFFe9c846);
                 tvShizukuStatus.setText("Chưa cấp quyền");
-                btnRequestPermission.setText("Cấp quyền");
-                btnRequestPermission.setAlpha(1f);
+                btnRequestPermission.setText("Cấp quyền Shizuku");
+                btnRequestPermission.setVisibility(View.VISIBLE);
                 break;
             case GRANTED:
-                tvShizukuDot.setTextColor(0xFF6fcf6f);
-                tvShizukuStatus.setText("Sẵn sàng ✓");
-                btnRequestPermission.setText("✓ OK");
-                btnRequestPermission.setAlpha(0.6f);
+                setDotColor(0xFF6fcf6f);
+                tvShizukuStatus.setText("Sẵn sàng");
+                btnRequestPermission.setVisibility(View.GONE);
                 break;
         }
         setActionButtonsLocked(state != ShizukuPermissionHelper.State.GRANTED);
@@ -594,9 +822,8 @@ public class MainActivity extends AppCompatActivity {
     private void setActionButtonsLocked(boolean locked) {
         btnUninstallAll.setEnabled(!locked);
         btnUninstallAll.setAlpha(locked ? 0.4f : 1f);
-        btnChooseWem.setEnabled(!locked);
-        btnChooseVideoLibrary.setEnabled(!locked);
-        btnChooseVideoUpload.setEnabled(!locked);
+        cardChooseWem.setEnabled(!locked);
+        cardChooseVideo.setEnabled(!locked);
         updateInstallButtonEnabled();
     }
 
@@ -617,23 +844,6 @@ public class MainActivity extends AppCompatActivity {
         if (isBusy) {
             progressBar.setProgress(0);
             tvProgressLabel.setText(initialLabel == null ? "" : initialLabel);
-            setLogExpanded(true);
         }
-    }
-
-    private void toggleLog() {
-        setLogExpanded(!logExpanded);
-    }
-
-    private void setLogExpanded(boolean expanded) {
-        logExpanded = expanded;
-        layoutLog.setVisibility(expanded ? View.VISIBLE : View.GONE);
-        tvHandleLogLabel.setText(expanded ? "🧾 Ẩn log debug" : "🧾 Xem log debug");
-    }
-
-    private void log(String message) {
-        String time = DateFormat.format("HH:mm:ss", new Date()).toString();
-        String current = tvLog.getText().toString();
-        tvLog.setText(current + "[" + time + "] " + message + "\n");
     }
 }

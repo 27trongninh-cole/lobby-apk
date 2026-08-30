@@ -1,38 +1,72 @@
-# Melo Ninstaller — bản "cài trực tiếp" (không qua zip/WebView)
+# Melo Ninstaller — bản redesign v2 (1 màn hình, không cuộn)
 
-## Thay đổi so với bản trước
-Bản trước có 2 tab: "Cài Mod" (native, chọn file .zip đã tải sẵn từ web) và
-"Tạo Mod" (nhúng WebView load thẳng trang web builder — đây là phần gây lag,
-vì phải cold-start Chromium + tải cả trang web).
+## Tổng quan luồng
+Chọn nhạc + video → xem trước ngay (crop 16:9 lấp đầy, không viền đen) →
+"Cài Mod" tự build trên server rồi cài thẳng vào game, không lộ file zip
+trung gian nào ra UI. Chi tiết luồng cài/build xem README gốc phần lịch sử
+bên dưới — phần này chỉ mô tả redesign UI.
 
-Bản này **gộp làm 1 màn hình, không còn zip và không còn WebView**:
-1. Người dùng chọn 1 bài nhạc (danh sách từ `/api/wem-list`, nghe thử qua
-   `/api/wem-preview/:id`) và 1 video (từ thư viện `/api/video-list`, hoặc tự
-   upload từ máy).
-2. Xem trước ngay trong app: video phát câm tiếng (loop) + nhạc phát riêng từ
-   `.wem` đã giải mã — y hệt cơ chế preview trên web.
-3. Bấm "📦 Cài Mod" → app tự gọi `POST /api/build` (multipart: `wemId` +
-   `videoId` hoặc file video) → nhận về zip bytes trong bộ nhớ → lưu tạm vào
-   cache app (`last_build.zip`) → đưa THẲNG vào `ModInstaller.installFromZip()`
-   để cài — người dùng không hề thấy bước file zip nào, không cần chọn file gì
-   thêm.
-4. Nút "🔁 Cài lại bản gần nhất" dùng lại `last_build.zip` trong cache, không
-   gọi lại server — hữu ích nếu muốn cài lại nhanh hoặc cài giữa chừng bị lỗi.
-5. "🗑️ Gỡ tất cả Mod" giữ nguyên logic cũ, không đổi gì.
+## Bố cục màn hình chính (không cuộn — mọi thứ nằm gọn trong 1 màn hình)
+1. **Header gọn**: logo + trạng thái Shizuku (chấm màu) + nút góc phải.
+   Nút góc phải hiện là icon Terminal mở **log debug** (bản test). Khi build
+   release chính thức, đổi hành vi tại đúng 1 chỗ —
+   `MainActivity.onTopRightActionClicked()` — dựa vào `BuildConfig.DEBUG`
+   để chuyển sang icon Settings (giao diện sáng/tối, ngôn ngữ, tài khoản —
+   CHƯA code, để sau khi có yêu cầu cụ thể).
+2. **Khung preview 16:9** — dùng `CropVideoView` (tự viết, xem file cùng tên)
+   để giả lập đúng hành vi CSS `object-fit:cover` của web: đo kích thước lớn
+   hơn khung rồi để `FrameLayout` cha clip phần dư, crop lấp đầy khung dù
+   nguồn là video dọc 9:16, không còn lộ viền đen như `VideoView` mặc định.
+   Overlay UI + nút bật/tắt overlay giữ nguyên logic gốc.
+3. **2 thẻ chọn Nhạc / Video** dạng compact, bấm mở dialog picker riêng
+   (`dialog_picker.xml`) — nhạc là list có nút nghe thử inline
+   (`WemListAdapter`), video là lưới 2 cột có thumbnail qua Glide
+   (`VideoGridAdapter`), cả hai đều có thanh tìm kiếm lọc theo tên (bỏ dấu).
+4. **Khu "Cài gần đây"** — lưu tối đa 3 tổ hợp nhạc+video đã cài thành công
+   gần nhất vào `SharedPreferences` (key `melo_ninstaller_prefs`), bấm vào
+   1 dòng để tự động chọn lại. **Chỉ áp dụng cho video lấy từ thư viện**
+   (có id ổn định) — video tự upload không lưu lại lịch sử vì Uri SAF có
+   thể mất quyền đọc sau khi khởi động lại app.
+5. **Cụm nút hành động**: "Cài Mod" (chính) + "Cài lại gần nhất" / "Gỡ Mod"
+   (phụ, xếp ngang).
 
-`ApiClient.java` (gọi API web) và các phần cài/gỡ mod thật
-(`ModInstaller`/`ModBackupManager`/`IspdiffFixer`) đều **giữ nguyên logic**,
-chỉ khác nguồn `Uri` đưa vào `installFromZip()` — trước là file zip user tự
-chọn qua SAF, giờ là file zip build ra nằm trong cache riêng của app.
+## File mới thêm trong bản redesign này
+- `CropVideoView.java` — crop video lấp đầy khung, xem doc trong file.
+- `WemListAdapter.java`, `VideoGridAdapter.java` — RecyclerView adapter.
+- `dialog_picker.xml`, `item_wem_row.xml`, `item_video_grid.xml` — UI picker.
+- `dialog_log.xml`, `item_recent_row.xml` — log debug + dòng lịch sử.
+- Thêm dependency: `recyclerview`, `constraintlayout`, `glide` (build.gradle).
 
-Đã xoá `MainActivityWebStyle.java`, `ModPreviewLocator.java` và layout
-`activity_main_web_style.xml` (không còn dùng — luồng cũ đọc file/wem/video
-*bên trong 1 zip đã có sẵn*; giờ nhạc/video được chọn từ trước lúc build nên
-không cần dò tìm trong zip nữa).
+## Việc CHƯA làm (để sau, đã thống nhất với chủ dự án)
+- Màn hình Settings thật (sáng/tối, ngôn ngữ, tài khoản) — chỉ mới chừa chỗ
+  (`onTopRightActionClicked()`), chưa code UI/logic thật.
+- Chuyển toàn bộ build mod (patch `Music_Login.bnk`, ghép zip) vào chạy
+  ngay trên app thay vì gọi server — đã bàn và xác nhận khả thi (thuần thao
+  tác buffer nhị phân, không phụ thuộc API riêng của Node), nhưng để làm
+  sau khi web hoàn thiện thêm, lúc đó sẽ xem lại `bnkParser.js`/
+  `bnkPatcher.js` cùng nhau trước khi port sang Java.
 
-## UI
-Vẫn 1 Activity duy nhất (`MainActivity`), theme Nod-Krai (xanh băng) — pill bo
-tròn, card viền mảnh, style y hệt bản trước.
+## Build APK bằng GitHub Actions (không cần Android Studio)
+1. Push toàn bộ nội dung thư mục này lên 1 repo GitHub (nhánh `main`).
+2. Tab **Actions** → workflow build APK → **Run workflow**.
+3. Tải APK từ mục **Artifacts** sau khi build xong.
+4. Cài vào máy Android test (bật "Cài từ nguồn không xác định" nếu cần).
+
+## Cần trước khi test trên máy thật
+1. Cài & chạy Shizuku trên máy test.
+2. Cài sẵn game Liên Quân (`com.garena.game.kgvn`).
+3. Máy có mạng ổn định (gọi Render để build, load thumbnail qua Glide, load
+   video thư viện để preview).
+
+## Việc nên test kỹ
+- Video dọc (9:16) từ thư viện lẫn tự upload — kiểm tra `CropVideoView` crop
+  đúng, không méo tỉ lệ, không viền đen.
+- Dialog picker khi thư viện có nhiều mục (test cuộn trong RecyclerView,
+  tìm kiếm có dấu/không dấu).
+- "Cài gần đây" sau khi admin xoá/đổi 1 bài nhạc hoặc video đã lưu trong
+  lịch sử — app cần báo đúng "không còn trong thư viện" thay vì crash.
+- Video tự upload dung lượng lớn (đọc hết vào RAM trước khi gửi multipart).
+
 
 ## Build APK bằng GitHub Actions (không cần Android Studio)
 Giữ nguyên hướng dẫn bản gốc:

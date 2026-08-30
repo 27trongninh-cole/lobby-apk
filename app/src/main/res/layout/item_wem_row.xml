@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/picker_card_bg"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <View
+        android:id="@+id/vWemRadio"
+        android:layout_width="10dp"
+        android:layout_height="10dp"
+        android:background="@drawable/web_ghost_pill"
+        android:layout_marginEnd="12dp" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvWemName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#d8eeff"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:text="Tên bài nhạc" />
+
+        <TextView
+            android:id="@+id/tvWemDuration"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#386080"
+            android:textSize="11sp"
+            android:layout_marginTop="2dp"
+            android:text="0:00" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/btnWemPlay"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:background="@drawable/web_gradient_pill"
+        android:text="▶"
+        android:textColor="#0b0800"
+        android:textStyle="bold"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true" />
+
+</LinearLayout>
