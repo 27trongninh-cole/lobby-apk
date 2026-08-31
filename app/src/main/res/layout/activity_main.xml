@@ -1,452 +1,435 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#060b12"
-    android:paddingTop="?attr/actionBarSize"
-    android:fitsSystemWindows="true">
+    android:background="#0a0e16">
 
     <!-- ═══ HEADER ═══ -->
-    <LinearLayout
-        android:layout_width="match_parent"
+    <View
+        android:id="@+id/logoChip"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:background="@drawable/bg_logo_chip"
+        android:layout_marginStart="18dp"
+        android:layout_marginTop="14dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="M"
+        android:textColor="#ffffff"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        app:layout_constraintTop_toTopOf="@id/logoChip"
+        app:layout_constraintBottom_toBottomOf="@id/logoChip"
+        app:layout_constraintStart_toStartOf="@id/logoChip"
+        app:layout_constraintEnd_toEndOf="@id/logoChip" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Melo Ninstaller"
+        android:textColor="#eef4ff"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:layout_marginStart="10dp"
+        app:layout_constraintTop_toTopOf="@id/logoChip"
+        app:layout_constraintBottom_toBottomOf="@id/logoChip"
+        app:layout_constraintStart_toEndOf="@id/logoChip" />
+
+    <ImageView
+        android:id="@+id/btnTopRightAction"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:padding="8dp"
+        android:background="@drawable/bg_ghost_v2"
+        android:src="@drawable/ic_terminal"
+        android:layout_marginEnd="18dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintTop_toTopOf="@id/logoChip"
+        app:layout_constraintBottom_toBottomOf="@id/logoChip"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/shizukuPill"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="10dp"
-        android:paddingBottom="8dp">
+        android:background="@drawable/bg_pill_soft"
+        android:paddingHorizontal="11dp"
+        android:layout_marginEnd="10dp"
+        app:layout_constraintTop_toTopOf="@id/logoChip"
+        app:layout_constraintBottom_toBottomOf="@id/logoChip"
+        app:layout_constraintEnd_toStartOf="@id/btnTopRightAction">
+
+        <View
+            android:id="@+id/tvShizukuDotView"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:background="@drawable/dot_indicator"
+            android:layout_marginEnd="6dp" />
 
         <TextView
-            android:layout_width="26dp"
-            android:layout_height="26dp"
-            android:background="@drawable/web_gradient_pill"
-            android:text="M"
-            android:textColor="#0b0800"
-            android:textStyle="bold"
-            android:textSize="13sp"
-            android:gravity="center"
-            android:layout_marginEnd="8dp" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Melo Ninstaller"
-            android:textColor="#d8eeff"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <!-- Trạng thái Shizuku (chấm màu + tên) -->
-        <LinearLayout
+            android:id="@+id/tvShizukuStatus"
             android:layout_width="wrap_content"
-            android:layout_height="28dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/web_ghost_pill"
-            android:paddingHorizontal="9dp"
-            android:layout_marginEnd="8dp">
-
-            <View
-                android:id="@+id/tvShizukuDotView"
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:background="@drawable/dot_indicator"
-                android:layout_marginEnd="5dp" />
-
-            <TextView
-                android:id="@+id/tvShizukuStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Đang kiểm tra..."
-                android:textColor="#a0c8ee"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Icon Terminal — log debug (bản test). Bản release sau này sẽ
-             đổi vị trí này sang icon Settings (sáng/tối, ngôn ngữ, tài
-             khoản), quyết định qua BuildConfig.DEBUG tại 1 chỗ duy nhất
-             trong MainActivity, không cần đổi layout. -->
-        <ImageView
-            android:id="@+id/btnTopRightAction"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:padding="6dp"
-            android:background="@drawable/web_ghost_pill"
-            android:src="@drawable/ic_terminal"
-            android:clickable="true"
-            android:focusable="true" />
+            android:layout_height="wrap_content"
+            android:text="Đang kiểm tra..."
+            android:textColor="#a9b7cc"
+            android:textSize="10.5sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Hàng ẩn: nút cấp quyền Shizuku, chỉ hiện khi cần -->
     <TextView
         android:id="@+id/btnRequestPermission"
-        android:layout_width="match_parent"
-        android:layout_height="34dp"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginBottom="6dp"
-        android:background="@drawable/web_gradient_pill"
+        android:layout_width="0dp"
+        android:layout_height="38dp"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_gradient_cta"
         android:text="Cấp quyền Shizuku"
-        android:textColor="#0b0800"
+        android:textColor="#ffffff"
         android:textStyle="bold"
-        android:textSize="12sp"
+        android:textSize="12.5sp"
         android:gravity="center"
         android:clickable="true"
         android:focusable="true"
-        android:visibility="gone" />
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/logoChip"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- ═══ PREVIEW 16:9 (crop lấp đầy, giống object-fit:cover trên web) ═══ -->
-    <FrameLayout
-        android:layout_width="match_parent"
+    <!-- ═══ PREVIEW 16:9 — chiều cao khoá theo đúng chiều rộng, không phụ
+         thuộc weight nữa nên không còn khoảng trống thừa phía trên/dưới. ═══ -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/previewClipFrame"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_weight="5"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginBottom="12dp">
+        android:background="#000000"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="16dp"
+        app:layout_constraintDimensionRatio="16:9"
+        app:layout_constraintTop_toBottomOf="@id/logoChip"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/previewVideoWrap"
+        <!-- CropVideoView tự đo lớn hơn khung theo đúng tỉ lệ thật của video
+             rồi để ConstraintLayout cha (clipChildren mặc định = true) cắt
+             phần dư — ra đúng hiệu ứng crop lấp đầy như CSS
+             object-fit:cover, không lộ viền đen dù nguồn là video dọc 9:16. -->
+        <com.echohall.kgvn.CropVideoView
+            android:id="@+id/previewVideo"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center">
+            android:layout_height="match_parent"
+            android:layout_gravity="center" />
 
-            <View
-                android:id="@+id/previewRatioAnchor"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                app:layout_constraintDimensionRatio="16:9"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <FrameLayout
-                android:id="@+id/previewClipFrame"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:background="#000000"
-                app:layout_constraintTop_toTopOf="@id/previewRatioAnchor"
-                app:layout_constraintBottom_toBottomOf="@id/previewRatioAnchor"
-                app:layout_constraintStart_toStartOf="@id/previewRatioAnchor"
-                app:layout_constraintEnd_toEndOf="@id/previewRatioAnchor">
-
-                <!-- CropVideoView tự đo lớn hơn khung theo đúng tỉ lệ thật
-                     của video rồi để FrameLayout cha clip phần dư — ra đúng
-                     hiệu ứng crop lấp đầy như CSS object-fit:cover, không
-                     lộ viền đen dù nguồn là video dọc 9:16. -->
-                <com.echohall.kgvn.CropVideoView
-                    android:id="@+id/previewVideo"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="center" />
-
-                <ImageView
-                    android:id="@+id/previewOverlayImg"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:src="@drawable/preview_overlay"
-                    android:scaleType="centerCrop" />
-
-                <LinearLayout
-                    android:id="@+id/overlayToggleChip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="top|end"
-                    android:layout_margin="8dp"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:background="#73000000"
-                    android:paddingStart="9dp"
-                    android:paddingEnd="6dp"
-                    android:paddingTop="3dp"
-                    android:paddingBottom="3dp"
-                    android:clickable="true"
-                    android:focusable="true">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="UI"
-                        android:textColor="#ffffff"
-                        android:textSize="9sp"
-                        android:textStyle="bold"
-                        android:layout_marginEnd="5dp" />
-
-                    <TextView
-                        android:id="@+id/tvOverlayToggleState"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="●"
-                        android:textColor="#80c8f8"
-                        android:textSize="13sp" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/tvPreviewCaptionOverlay"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom|start"
-                    android:layout_margin="8dp"
-                    android:background="#73000000"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="4dp"
-                    android:textColor="#d8eeff"
-                    android:textSize="10sp"
-                    android:visibility="gone" />
-
-                <LinearLayout
-                    android:id="@+id/previewEmptyOverlay"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="#80000000"
-                    android:gravity="center"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Chọn nhạc + video để xem trước tại đây"
-                        android:textColor="#ffffff"
-                        android:textStyle="bold"
-                        android:textSize="12sp"
-                        android:gravity="center" />
-                </LinearLayout>
-            </FrameLayout>
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </FrameLayout>
-
-    <!-- ═══ 2 THẺ CHỌN NHẠC / VIDEO ═══ -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:layout_marginBottom="10dp">
+        <ImageView
+            android:id="@+id/previewOverlayImg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/preview_overlay"
+            android:scaleType="centerCrop" />
 
         <LinearLayout
-            android:id="@+id/cardChooseWem"
-            android:layout_width="0dp"
-            android:layout_weight="1"
+            android:id="@+id/overlayToggleChip"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_margin="10dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:background="@drawable/picker_card_bg"
-            android:padding="9dp"
-            android:layout_marginEnd="8dp"
+            android:background="#80000000"
+            android:paddingStart="10dp"
+            android:paddingEnd="7dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
             android:clickable="true"
             android:focusable="true">
 
-            <ImageView
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:padding="7dp"
-                android:background="@drawable/thumb_placeholder_bg"
-                android:src="@drawable/ic_music_note"
-                android:layout_marginEnd="8dp" />
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_weight="1"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:text="UI"
+                android:textColor="#ffffff"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="5dp" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="NHẠC"
-                    android:textColor="#386080"
-                    android:textSize="8sp"
-                    android:letterSpacing="0.05"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvSelectedWem"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Chưa chọn"
-                    android:textColor="#d8eeff"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:ellipsize="end"
-                    android:singleLine="true" />
-            </LinearLayout>
-
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/ic_chevron_down"
-                android:layout_marginStart="4dp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/cardChooseVideo"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/picker_card_bg"
-            android:padding="9dp"
-            android:clickable="true"
-            android:focusable="true">
-
-            <ImageView
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:padding="7dp"
-                android:background="@drawable/thumb_placeholder_bg"
-                android:src="@drawable/ic_movie"
-                android:layout_marginEnd="8dp" />
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_weight="1"
+            <TextView
+                android:id="@+id/tvOverlayToggleState"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="VIDEO"
-                    android:textColor="#386080"
-                    android:textSize="8sp"
-                    android:letterSpacing="0.05"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvSelectedVideo"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Chưa chọn"
-                    android:textColor="#d8eeff"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:ellipsize="end"
-                    android:singleLine="true" />
-            </LinearLayout>
-
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/ic_chevron_down"
-                android:layout_marginStart="4dp" />
+                android:text="●"
+                android:textColor="#6d9bf5"
+                android:textSize="13sp" />
         </LinearLayout>
-    </LinearLayout>
-
-    <!-- ═══ KHU "CÀI GẦN ĐÂY" — chỉ chiếm đúng chiều cao nội dung thật, không
-         kéo giãn theo weight (tránh để lộ khoảng trắng chết khi ít mục). ═══ -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="16dp">
 
         <TextView
-            android:id="@+id/tvRecentLabel"
-            android:layout_width="match_parent"
+            android:id="@+id/tvPreviewCaptionOverlay"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="CÀI GẦN ĐÂY · BẤM ĐỂ CHỌN LẠI"
-            android:textColor="#386080"
-            android:textSize="8sp"
-            android:letterSpacing="0.05"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp"
+            android:layout_gravity="bottom|start"
+            android:layout_margin="10dp"
+            android:background="#80000000"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:textColor="#eef4ff"
+            android:textSize="10sp"
             android:visibility="gone" />
 
         <LinearLayout
-            android:id="@+id/layoutRecentList"
+            android:id="@+id/previewEmptyOverlay"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-    </LinearLayout>
+            android:layout_height="match_parent"
+            android:background="#8a0a0e16"
+            android:gravity="center"
+            android:padding="16dp">
 
-    <!-- Spacer co giãn: hút hết khoảng trống còn thừa, luôn đẩy cụm nút
-         hành động xuống sát đáy màn hình bất kể có bao nhiêu mục "Cài gần
-         đây" — đây là chỗ trước đây bị bỏ trống rời rạc trong bản build lỗi. -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Chọn nhạc + video để xem trước tại đây"
+                android:textColor="#ffffff"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:gravity="center" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- ═══ CỤM NÚT HÀNH ĐỘNG ═══ -->
+    <!-- ═══ 2 THẺ CHỌN NHẠC / VIDEO ═══ -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="16dp"
-        android:paddingBottom="14dp"
-        android:paddingTop="8dp">
+        android:id="@+id/cardChooseWem"
+        android:layout_width="0dp"
+        android:layout_height="64dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_card_v2"
+        android:paddingHorizontal="12dp"
+        android:layout_marginStart="18dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginEnd="7dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintTop_toBottomOf="@id/previewClipFrame"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/cardChooseVideo"
+        app:layout_constraintWidth_percent="0.47">
 
-        <ProgressBar
-            android:id="@+id/progressBar"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="100"
-            android:progressTint="#80c8f8"
-            android:visibility="gone"
-            android:layout_marginBottom="4dp" />
-
-        <TextView
-            android:id="@+id/tvProgressLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#6a94b8"
-            android:textSize="11sp"
-            android:gravity="center"
-            android:visibility="gone"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/btnInstall"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:background="@drawable/web_gradient_pill"
-            android:text="📦  Cài Mod"
-            android:textColor="#0b0800"
-            android:textStyle="bold"
-            android:textSize="14sp"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:alpha="0.4"
-            android:layout_marginBottom="8dp" />
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="8dp"
+            android:background="@drawable/bg_icon_chip"
+            android:src="@drawable/ic_music_note"
+            android:layout_marginEnd="10dp" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/btnReinstallLast"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="40dp"
-                android:background="@drawable/web_ghost_pill"
-                android:text="🔁  Cài lại gần nhất"
-                android:textColor="#a0c8ee"
-                android:textStyle="bold"
-                android:textSize="10.5sp"
-                android:gravity="center"
-                android:clickable="true"
-                android:focusable="true"
-                android:visibility="gone"
-                android:layout_marginEnd="8dp" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="NHẠC"
+                android:textColor="#5c6b85"
+                android:textSize="8.5sp"
+                android:letterSpacing="0.06"
+                android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/btnUninstallAll"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="40dp"
-                android:background="@drawable/web_ghost_pill"
-                android:text="🗑️  Gỡ Mod"
-                android:textColor="#f09595"
+                android:id="@+id/tvSelectedWem"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Chưa chọn"
+                android:textColor="#eef4ff"
+                android:textSize="12sp"
                 android:textStyle="bold"
-                android:textSize="10.5sp"
-                android:gravity="center"
-                android:clickable="true"
-                android:focusable="true" />
+                android:ellipsize="end"
+                android:singleLine="true" />
         </LinearLayout>
+
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:src="@drawable/ic_chevron_down"
+            android:layout_marginStart="4dp" />
     </LinearLayout>
 
-</LinearLayout>
+    <LinearLayout
+        android:id="@+id/cardChooseVideo"
+        android:layout_width="0dp"
+        android:layout_height="64dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_card_v2"
+        android:paddingHorizontal="12dp"
+        android:layout_marginEnd="18dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintTop_toTopOf="@id/cardChooseWem"
+        app:layout_constraintStart_toEndOf="@id/cardChooseWem"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="8dp"
+            android:background="@drawable/bg_icon_chip"
+            android:src="@drawable/ic_movie"
+            android:layout_marginEnd="10dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="VIDEO"
+                android:textColor="#5c6b85"
+                android:textSize="8.5sp"
+                android:letterSpacing="0.06"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvSelectedVideo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Chưa chọn"
+                android:textColor="#eef4ff"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:ellipsize="end"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:src="@drawable/ic_chevron_down"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <!-- ═══ KHU "CÀI GẦN ĐÂY" ═══ -->
+    <TextView
+        android:id="@+id/tvRecentLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="CÀI GẦN ĐÂY · BẤM ĐỂ CHỌN LẠI"
+        android:textColor="#5c6b85"
+        android:textSize="8.5sp"
+        android:letterSpacing="0.06"
+        android:textStyle="bold"
+        android:layout_marginStart="18dp"
+        android:layout_marginTop="18dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/cardChooseWem"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/layoutRecentList"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/tvRecentLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- ═══ CỤM NÚT HÀNH ĐỘNG — luôn neo sát đáy màn hình ═══ -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:max="100"
+        android:progressTint="#6d7bf5"
+        android:visibility="gone"
+        android:layout_marginHorizontal="18dp"
+        app:layout_constraintBottom_toTopOf="@id/tvProgressLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tvProgressLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textColor="#8a97ad"
+        android:textSize="11sp"
+        android:gravity="center"
+        android:visibility="gone"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginBottom="10dp"
+        app:layout_constraintBottom_toTopOf="@id/btnInstall"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/btnInstall"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:background="@drawable/bg_gradient_cta"
+        android:text="📦  Cài Mod"
+        android:textColor="#ffffff"
+        android:textStyle="bold"
+        android:textSize="15sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:alpha="0.4"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginBottom="10dp"
+        app:layout_constraintBottom_toTopOf="@id/btnUninstallAll"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/btnReinstallLast"
+        android:layout_width="0dp"
+        android:layout_height="46dp"
+        android:background="@drawable/bg_ghost_v2"
+        android:text="🔁  Cài lại gần nhất"
+        android:textColor="#a9b7cc"
+        android:textStyle="bold"
+        android:textSize="11sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        android:layout_marginStart="18dp"
+        android:layout_marginEnd="7dp"
+        android:layout_marginBottom="18dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btnUninstallAll"
+        app:layout_constraintWidth_percent="0.47" />
+
+    <TextView
+        android:id="@+id/btnUninstallAll"
+        android:layout_width="0dp"
+        android:layout_height="46dp"
+        android:background="@drawable/bg_ghost_v2"
+        android:text="🗑️  Gỡ Mod"
+        android:textColor="#f0958e"
+        android:textStyle="bold"
+        android:textSize="11sp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:layout_marginEnd="18dp"
+        android:layout_marginBottom="18dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/btnReinstallLast"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

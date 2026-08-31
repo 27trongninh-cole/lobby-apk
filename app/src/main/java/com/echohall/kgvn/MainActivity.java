@@ -207,17 +207,35 @@ public class MainActivity extends AppCompatActivity {
 
     // ─────────────────────────── Thư viện + picker dialog ───────────────────────────
 
+    /**
+     * Trạng thái tải thư viện — dùng để phân biệt "đang tải" (bình thường,
+     * chỉ cần đợi) với "tải lỗi thật" (network fail), tránh hiện Toast lỗi
+     * sai lúc người dùng bấm mở picker ngay vài giây sau khi mở app trong
+     * lúc /api/wem-list vẫn đang gọi (không phải bug, chỉ là chưa xong).
+     */
+    private boolean wemLoading = false;
+    private boolean videoLoading = false;
+
     private void loadLibraries() {
+        wemLoading = true;
+        videoLoading = true;
+        tvSelectedWem.setText("Đang tải...");
+        tvSelectedVideo.setText("Đang tải...");
         log("Đang tải thư viện nhạc/video từ server...");
+
         apiClient.fetchWemList(new ApiClient.Callback<List<ApiClient.WemItem>>() {
             @Override
             public void onSuccess(List<ApiClient.WemItem> result) {
                 wemLibrary = result;
+                wemLoading = false;
+                if (selectedWem == null) tvSelectedWem.setText("Chưa chọn");
                 log("✓ Tải xong " + result.size() + " bài nhạc.");
             }
 
             @Override
             public void onError(String message) {
+                wemLoading = false;
+                if (selectedWem == null) tvSelectedWem.setText("Lỗi tải — bấm để thử lại");
                 log("✗ Lỗi tải danh sách nhạc: " + message);
                 Toast.makeText(MainActivity.this, "Lỗi tải danh sách nhạc: " + message, Toast.LENGTH_LONG).show();
             }
@@ -227,11 +245,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<ApiClient.VideoItem> result) {
                 videoLibrary = result;
+                videoLoading = false;
+                if (selectedVideoFromLibrary == null && selectedVideoUploadUri == null) tvSelectedVideo.setText("Chưa chọn");
                 log("✓ Tải xong " + result.size() + " video.");
             }
 
             @Override
             public void onError(String message) {
+                videoLoading = false;
+                if (selectedVideoFromLibrary == null && selectedVideoUploadUri == null) tvSelectedVideo.setText("Lỗi tải — bấm để thử lại");
                 log("✗ Lỗi tải danh sách video: " + message);
                 Toast.makeText(MainActivity.this, "Lỗi tải danh sách video: " + message, Toast.LENGTH_LONG).show();
             }
@@ -239,8 +261,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openWemPickerDialog() {
+        if (wemLoading) {
+            Toast.makeText(this, "Thư viện nhạc đang tải, đợi vài giây rồi bấm lại nhé.", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (wemLibrary == null || wemLibrary.isEmpty()) {
-            Toast.makeText(this, "Chưa tải được danh sách nhạc, thử lại sau.", Toast.LENGTH_SHORT).show();
+            // Lỗi thật (không phải đang tải) — cho phép bấm lại để thử tải lại.
             loadLibraries();
             return;
         }
@@ -322,8 +348,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openVideoPickerDialog() {
+        if (videoLoading) {
+            Toast.makeText(this, "Thư viện video đang tải, đợi vài giây rồi bấm lại nhé.", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (videoLibrary == null || videoLibrary.isEmpty()) {
-            Toast.makeText(this, "Chưa tải được danh sách video, thử lại sau.", Toast.LENGTH_SHORT).show();
             loadLibraries();
             return;
         }

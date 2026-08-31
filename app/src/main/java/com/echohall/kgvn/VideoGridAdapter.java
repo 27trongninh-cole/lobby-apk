@@ -1,5 +1,10 @@
 package com.echohall.kgvn;
 
+import android.graphics.Bitmap;
+import android.media.MediaMetadataRetriever;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,8 +18,12 @@ import com.bumptech.glide.Glide;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 
 public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> {
@@ -22,6 +31,14 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
     public interface Listener {
         void onSelect(ApiClient.VideoItem item);
     }
+
+    // Cache khung hình đầu đã trích xuất trong bộ nhớ (key = video_url) để
+    // không phải tải lại video mỗi lần cuộn qua cuộn lại trong lưới, giống
+    // trình duyệt tự cache <video> đã load 1 lần trên web.
+    private static final LruCache<String, Bitmap> FRAME_CACHE = new LruCache<>(24);
+    private static final ExecutorService THUMB_EXECUTOR = Executors.newFixedThreadPool(2);
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Set<String> inFlight = new HashSet<>();
 
     private final List<ApiClient.VideoItem> all;
     private List<ApiClient.VideoItem> filtered;
@@ -74,21 +91,83 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
         h.itemView.setSelected(item.id != null && item.id.equals(selectedId));
         h.itemView.setOnClickListener(v -> listener.onSelect(item));
 
+        h.fallback.setVisibility(View.GONE);
+        h.thumb.setVisibility(View.VISIBLE);
+
         if (item.thumbnailUrl != null && !item.thumbnailUrl.isEmpty()) {
-            h.fallback.setVisibility(View.GONE);
-            h.thumb.setVisibility(View.VISIBLE);
+            // Có sẵn ảnh thumbnail admin upload — dùng luôn, không cần trích
+            // khung hình từ video (nhanh hơn nhiều).
             Glide.with(h.thumb.getContext())
                     .load(item.thumbnailUrl)
                     .centerCrop()
                     .into(h.thumb);
+        } else if (item.videoUrl != null && !item.videoUrl.isEmpty()) {
+            // Không có thumbnail_url — trích khung hình ĐẦU của video, đúng
+            // như cách web lấy frame đầu từ thẻ <video> khi thiếu ảnh bìa.
+            loadFirstFrame(h, item.videoUrl);
         } else {
-            // Không có thumbnail_url (giống web: fallback dùng chính thẻ
-            // <video> để lấy khung hình đầu) — ở đây đơn giản hoá bằng icon
-            // 🎬 thay vì tự trích khung hình từ video_url (tốn thời gian +
-            // băng thông cho mỗi ô lưới).
             h.thumb.setVisibility(View.GONE);
             h.fallback.setVisibility(View.VISIBLE);
         }
+    }
+
+    private void loadFirstFrame(VH h, String videoUrl) {
+        Bitmap cached = FRAME_CACHE.get(videoUrl);
+        if (cached != null) {
+            h.thumb.setImageBitmap(cached);
+            return;
+        }
+
+        // Đặt bitmap rỗng tạm thời (nền placeholder có sẵn từ background),
+        // đánh dấu tag để tránh set nhầm ảnh khi ViewHolder bị tái sử dụng
+        // trong lúc đang trích xuất (RecyclerView recycle khi cuộn nhanh).
+        h.thumb.setImageDrawable(null);
+        h.thumb.setTag(videoUrl);
+
+        synchronized (inFlight) {
+            if (inFlight.contains(videoUrl)) return;
+            inFlight.add(videoUrl);
+        }
+
+        THUMB_EXECUTOR.execute(() -> {
+            Bitmap frame = null;
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            try {
+                retriever.setDataSource(videoUrl, new java.util.HashMap<>());
+                frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            } catch (Exception ignored) {
+                // Video lỗi/không truy cập được — giữ frame = null, sẽ fallback icon.
+            } finally {
+                try {
+                    retriever.release(); // release() thay vì AutoCloseable — hỗ trợ từ API 1,
+                    // trong khi try-with-resources trên MediaMetadataRetriever chỉ chạy được
+                    // từ API 29 (minSdk dự án là 26).
+                } catch (Exception ignored) {
+                }
+                synchronized (inFlight) {
+                    inFlight.remove(videoUrl);
+                }
+            }
+
+            Bitmap finalFrame = frame;
+            mainHandler.post(() -> {
+                if (finalFrame != null) {
+                    FRAME_CACHE.put(videoUrl, finalFrame);
+                }
+                // Chỉ set ảnh nếu ViewHolder này vẫn đang hiển thị đúng video
+                // đó (chưa bị tái sử dụng cho item khác trong lúc chờ).
+                if (videoUrl.equals(h.thumb.getTag())) {
+                    if (finalFrame != null) {
+                        h.thumb.setVisibility(View.VISIBLE);
+                        h.fallback.setVisibility(View.GONE);
+                        h.thumb.setImageBitmap(finalFrame);
+                    } else {
+                        h.thumb.setVisibility(View.GONE);
+                        h.fallback.setVisibility(View.VISIBLE);
+                    }
+                }
+            });
+        });
     }
 
     @Override
@@ -108,3 +187,4 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
         }
     }
 }
+
