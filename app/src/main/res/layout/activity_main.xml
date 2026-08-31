@@ -69,16 +69,13 @@
              đổi vị trí này sang icon Settings (sáng/tối, ngôn ngữ, tài
              khoản), quyết định qua BuildConfig.DEBUG tại 1 chỗ duy nhất
              trong MainActivity, không cần đổi layout. -->
-        <TextView
+        <ImageView
             android:id="@+id/btnTopRightAction"
             android:layout_width="28dp"
             android:layout_height="28dp"
+            android:padding="6dp"
             android:background="@drawable/web_ghost_pill"
-            android:text="⌥"
-            android:textColor="#6a94b8"
-            android:textStyle="bold"
-            android:textSize="14sp"
-            android:gravity="center"
+            android:src="@drawable/ic_terminal"
             android:clickable="true"
             android:focusable="true" />
     </LinearLayout>
@@ -239,14 +236,12 @@
             android:clickable="true"
             android:focusable="true">
 
-            <TextView
+            <ImageView
                 android:layout_width="30dp"
                 android:layout_height="30dp"
+                android:padding="7dp"
                 android:background="@drawable/thumb_placeholder_bg"
-                android:text="♪"
-                android:textColor="#80c8f8"
-                android:textSize="14sp"
-                android:gravity="center"
+                android:src="@drawable/ic_music_note"
                 android:layout_marginEnd="8dp" />
 
             <LinearLayout
@@ -276,12 +271,10 @@
                     android:singleLine="true" />
             </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="⌄"
-                android:textColor="#386080"
-                android:textSize="12sp"
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_chevron_down"
                 android:layout_marginStart="4dp" />
         </LinearLayout>
 
@@ -297,14 +290,12 @@
             android:clickable="true"
             android:focusable="true">
 
-            <TextView
+            <ImageView
                 android:layout_width="30dp"
                 android:layout_height="30dp"
+                android:padding="7dp"
                 android:background="@drawable/thumb_placeholder_bg"
-                android:text="▶"
-                android:textColor="#80c8f8"
-                android:textSize="12sp"
-                android:gravity="center"
+                android:src="@drawable/ic_movie"
                 android:layout_marginEnd="8dp" />
 
             <LinearLayout
@@ -334,21 +325,19 @@
                     android:singleLine="true" />
             </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="⌄"
-                android:textColor="#386080"
-                android:textSize="12sp"
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_chevron_down"
                 android:layout_marginStart="4dp" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- ═══ KHU "CÀI GẦN ĐÂY" — lấp khoảng trống, chọn lại tổ hợp cũ ═══ -->
+    <!-- ═══ KHU "CÀI GẦN ĐÂY" — chỉ chiếm đúng chiều cao nội dung thật, không
+         kéo giãn theo weight (tránh để lộ khoảng trắng chết khi ít mục). ═══ -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="4"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingHorizontal="16dp">
 
@@ -370,6 +359,14 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" />
     </LinearLayout>
+
+    <!-- Spacer co giãn: hút hết khoảng trống còn thừa, luôn đẩy cụm nút
+         hành động xuống sát đáy màn hình bất kể có bao nhiêu mục "Cài gần
+         đây" — đây là chỗ trước đây bị bỏ trống rời rạc trong bản build lỗi. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
     <!-- ═══ CỤM NÚT HÀNH ĐỘNG ═══ -->
     <LinearLayout

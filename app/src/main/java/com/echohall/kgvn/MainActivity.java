@@ -62,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
     private View tvShizukuDotView;
     private TextView tvShizukuStatus;
     private TextView btnRequestPermission;
-    private TextView btnTopRightAction;
+    private ImageView btnTopRightAction;
 
     private TextView tvSelectedWem;
     private TextView tvSelectedVideo;
