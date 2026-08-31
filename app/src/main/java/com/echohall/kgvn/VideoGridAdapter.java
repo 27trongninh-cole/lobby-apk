@@ -22,8 +22,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 
 public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> {
@@ -36,7 +40,11 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
     // không phải tải lại video mỗi lần cuộn qua cuộn lại trong lưới, giống
     // trình duyệt tự cache <video> đã load 1 lần trên web.
     private static final LruCache<String, Bitmap> FRAME_CACHE = new LruCache<>(24);
-    private static final ExecutorService THUMB_EXECUTOR = Executors.newFixedThreadPool(2);
+    private static final ExecutorService THUMB_EXECUTOR = Executors.newFixedThreadPool(3);
+    // Executor riêng chỉ để CHỜ CÓ GIỚI HẠN THỜI GIAN kết quả trích xuất —
+    // không trực tiếp làm việc nặng, nên không lo tắc nghẽn dù nhiều video
+    // cùng bị treo (xem ghi chú TIMEOUT bên dưới).
+    private static final ExecutorService WATCHDOG_EXECUTOR = Executors.newCachedThreadPool();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Set<String> inFlight = new HashSet<>();
 
@@ -130,20 +138,34 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
         }
 
         THUMB_EXECUTOR.execute(() -> {
+            Future<Bitmap> future = WATCHDOG_EXECUTOR.submit((Callable<Bitmap>) () -> {
+                MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                try {
+                    retriever.setDataSource(videoUrl, new java.util.HashMap<>());
+                    return retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                } finally {
+                    try {
+                        retriever.release();
+                    } catch (Exception ignored) {
+                    }
+                }
+            });
+
             Bitmap frame = null;
-            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
             try {
-                retriever.setDataSource(videoUrl, new java.util.HashMap<>());
-                frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                // GHI CHÚ TIMEOUT: video mp4 không bật "faststart" (moov atom
+                // nằm ở CUỐI file thay vì đầu) khiến MediaMetadataRetriever
+                // phải tải gần hết file qua mạng chỉ để đọc được 1 khung hình
+                // đầu — có thể treo rất lâu hoặc vô thời hạn với video nặng.
+                // Giới hạn 6s để không kẹt UI/luồng vô thời hạn; nếu server
+                // export video bằng ffmpeg, khuyến khích thêm cờ
+                // "-movflags +faststart" để việc này luôn nhanh.
+                frame = future.get(6, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                future.cancel(true);
             } catch (Exception ignored) {
                 // Video lỗi/không truy cập được — giữ frame = null, sẽ fallback icon.
             } finally {
-                try {
-                    retriever.release(); // release() thay vì AutoCloseable — hỗ trợ từ API 1,
-                    // trong khi try-with-resources trên MediaMetadataRetriever chỉ chạy được
-                    // từ API 29 (minSdk dự án là 26).
-                } catch (Exception ignored) {
-                }
                 synchronized (inFlight) {
                     inFlight.remove(videoUrl);
                 }

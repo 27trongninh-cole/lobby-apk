@@ -104,3 +104,36 @@ Giữ nguyên hướng dẫn bản gốc:
   vẫn phải quản lý bài nhạc sẵn trong thư viện admin).
 - Giới hạn/nén video tự upload trước khi gửi lên server để giảm thời gian chờ
   build với video dung lượng lớn.
+
+## Bản sửa lỗi v4 (từ phản hồi test thực tế)
+1. **Nút "Cấp quyền Shizuku" biến mất** — do neo cùng vị trí với khung
+   preview (cả 2 cùng `topToBottomOf logoChip`), preview vẽ sau nên che kín
+   nút, chỉ lộ 1 sợi màu mỏng ở viền trên. Đã sửa: preview giờ neo
+   `topToBottomOf` chính nút đó — khi nút ẩn, preview tự nhảy lên đúng vị trí
+   cũ nhờ ConstraintLayout collapse view GONE, không cần logic riêng.
+2. **Nút "Gỡ Mod" lệch sát mép trái** — khi nút "Cài lại gần nhất" đang ẩn
+   (GONE), ConstraintLayout tự triệt tiêu margin của cạnh nối tới nó về 0,
+   khiến "Gỡ Mod" mất luôn margin trái 18dp. Sửa bằng
+   `app:layout_goneMarginStart="18dp"`.
+3. **Toggle overlay + chú thích preview lệch về góc trên-trái** — nguyên
+   nhân: lúc chuyển khung preview từ `FrameLayout` sang `ConstraintLayout`
+   (bản v3), quên đổi `layout_gravity="top|end"` sang
+   `app:layout_constraintTop_toTopOf`/`End_toEndOf` — `ConstraintLayout`
+   không hiểu `layout_gravity` nên các phần tử đó rơi về (0,0) mặc định. Đã
+   thêm constraint đúng, đồng thời đổi sang bên PHẢI theo yêu cầu.
+4. **Thumbnail video vẫn không hiện** — thêm timeout 6s cho việc trích khung
+   hình (`MediaMetadataRetriever`) vì video mp4 không bật "faststart" (moov
+   atom ở cuối file) có thể khiến việc trích xuất từ xa treo rất lâu/vô thời
+   hạn. Nếu vẫn không thấy thumbnail sau bản này, nhiều khả năng cần xuất
+   lại video bằng `ffmpeg -movflags +faststart` ở phía server/nguồn video.
+5. **Thanh playback nhạc** — thêm hẳn dưới khung preview (nút play/pause,
+   SeekBar tua được, hiển thị thời gian), nối qua API mới thêm vào
+   `preview.html`/`PreviewDecoder` (`getPlaybackState`, `togglePlayPauseWem`,
+   `seekWemTo`), polling mỗi 300ms khi Activity đang hiển thị.
+6. **Nhạc phát nền sau khi thoát app** — trước chỉ dừng nhạc ở `onDestroy()`
+   (Activity bị huỷ hẳn), nhưng bấm Home chỉ gọi `onPause()`/`onStop()`,
+   Activity vẫn sống nên nhạc vẫn phát ngầm. Giờ dừng nhạc ngay tại
+   `onPause()`.
+7. **Giao diện làm mới** — logo thật (`logo_header.png`) thay chữ "M", khung
+   preview bo góc thật (`clipToOutline`), gradient CTA đổi tông xanh dương→
+   tím thay vì baby-blue phẳng.

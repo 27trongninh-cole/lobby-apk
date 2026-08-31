@@ -5,6 +5,9 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.SeekBar;
 import android.text.format.DateFormat;
 import android.text.format.DateUtils;
 import android.view.LayoutInflater;
@@ -69,14 +72,57 @@ public class MainActivity extends AppCompatActivity {
     private View cardChooseWem;
     private View cardChooseVideo;
 
-    private CropVideoView previewVideo;
-    private ImageView previewOverlayImg;
+    private CropVideoView previewVideo;    private ImageView previewOverlayImg;
     private View overlayToggleChip;
     private TextView tvOverlayToggleState;
     private View previewEmptyOverlay;
     private TextView tvPreviewCaptionOverlay;
     private boolean overlayOn = true;
     private PreviewDecoder previewDecoder;
+
+    // Thanh playback nhạc dưới khung preview.
+    private View layoutPlaybackBar;
+    private ImageView btnPlaybackToggle;
+    private SeekBar seekPlayback;
+    private TextView tvPlaybackTime;
+    private final Handler playbackPollHandler = new Handler(Looper.getMainLooper());
+    private boolean isDraggingSeek = false;
+    private final Runnable playbackPollRunnable = new Runnable() {
+        @Override
+        public void run() {
+            previewDecoder.queryPlaybackState(state -> {
+                if (!state.hasSrc) {
+                    layoutPlaybackBar.setVisibility(View.GONE);
+                } else {
+                    layoutPlaybackBar.setVisibility(View.VISIBLE);
+                    btnPlaybackToggle.setImageResource(state.playing ? R.drawable.ic_pause : R.drawable.ic_play);
+                    tvPlaybackTime.setText(formatTime(state.currentTimeSec) + " / " + formatTime(state.durationSec));
+                    if (!isDraggingSeek && state.durationSec > 0) {
+                        int progress = (int) (1000 * state.currentTimeSec / state.durationSec);
+                        seekPlayback.setProgress(Math.max(0, Math.min(1000, progress)));
+                    }
+                }
+            });
+            playbackPollHandler.postDelayed(this, 300);
+        }
+    };
+
+    private void startPlaybackPolling() {
+        playbackPollHandler.removeCallbacks(playbackPollRunnable);
+        playbackPollHandler.post(playbackPollRunnable);
+    }
+
+    private void stopPlaybackPolling() {
+        playbackPollHandler.removeCallbacks(playbackPollRunnable);
+        if (layoutPlaybackBar != null) layoutPlaybackBar.setVisibility(View.GONE);
+    }
+
+    private static String formatTime(double seconds) {
+        if (seconds < 0 || Double.isNaN(seconds)) seconds = 0;
+        int total = (int) seconds;
+        return String.format(java.util.Locale.US, "%d:%02d", total / 60, total % 60);
+    }
+
 
     private TextView tvRecentLabel;
     private LinearLayout layoutRecentList;
@@ -154,6 +200,34 @@ public class MainActivity extends AppCompatActivity {
 
         modInstaller = new ModInstaller(this);
         previewDecoder = new PreviewDecoder(this, (ViewGroup) findViewById(android.R.id.content));
+
+        layoutPlaybackBar = findViewById(R.id.layoutPlaybackBar);
+        btnPlaybackToggle = findViewById(R.id.btnPlaybackToggle);
+        seekPlayback = findViewById(R.id.seekPlayback);
+        tvPlaybackTime = findViewById(R.id.tvPlaybackTime);
+
+        btnPlaybackToggle.setOnClickListener(v -> previewDecoder.togglePlayPause());
+        seekPlayback.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                isDraggingSeek = true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                isDraggingSeek = false;
+                previewDecoder.queryPlaybackState(state -> {
+                    if (state.durationSec > 0) {
+                        double seekSeconds = state.durationSec * seekBar.getProgress() / 1000.0;
+                        previewDecoder.seekTo(seekSeconds);
+                    }
+                });
+            }
+        });
 
         cardChooseWem.setOnClickListener(v -> openWemPickerDialog());
         cardChooseVideo.setOnClickListener(v -> openVideoPickerDialog());
@@ -805,6 +879,18 @@ public class MainActivity extends AppCompatActivity {
         if (!isPreScopedStorage && shizukuHelper != null) {
             shizukuHelper.checkAndNotify();
         }
+        startPlaybackPolling();
+    }
+
+    // Trước đây chỉ dừng nhạc ở onDestroy() — nhưng bấm nút Home (hoặc chuyển
+    // app khác) chỉ gọi onPause()/onStop(), Activity vẫn sống trong bộ nhớ,
+    // nên nhạc trong WebView ẩn tiếp tục phát nền dù người dùng tưởng đã
+    // thoát app. Dừng ngay tại onPause() để khớp đúng cảm giác "thoát là tắt".
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopPreview();
+        stopPlaybackPolling();
     }
 
     @Override

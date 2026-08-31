@@ -78,6 +78,51 @@ public class PreviewDecoder {
         webView.destroy();
     }
 
+    /** Trạng thái playback hiện tại — dùng để cập nhật SeekBar native. */
+    public static class PlaybackState {
+        public boolean hasSrc;
+        public boolean playing;
+        public double currentTimeSec;
+        public double durationSec;
+    }
+
+    public interface StateCallback {
+        void onState(PlaybackState state);
+    }
+
+    /** Hỏi trạng thái playback hiện tại (gọi định kỳ ~300ms để cập nhật SeekBar). */
+    public void queryPlaybackState(StateCallback callback) {
+        webView.post(() -> webView.evaluateJavascript("getPlaybackState()", json -> {
+            try {
+                // evaluateJavascript trả về chuỗi JSON đã escape thêm 1 lớp (ví dụ
+                // \"key\":\"value\") — cần unescape trước khi parse bằng org.json.
+                String unescaped = json == null ? "{}" : json;
+                if (unescaped.startsWith("\"") && unescaped.endsWith("\"")) {
+                    unescaped = unescaped.substring(1, unescaped.length() - 1)
+                            .replace("\\\"", "\"").replace("\\\\", "\\");
+                }
+                org.json.JSONObject obj = new org.json.JSONObject(unescaped);
+                PlaybackState state = new PlaybackState();
+                state.hasSrc = obj.optBoolean("hasSrc", false);
+                state.playing = obj.optBoolean("playing", false);
+                state.currentTimeSec = obj.optDouble("currentTime", 0);
+                state.durationSec = obj.optDouble("duration", 0);
+                callback.onState(state);
+            } catch (Exception e) {
+                PlaybackState empty = new PlaybackState();
+                callback.onState(empty);
+            }
+        }));
+    }
+
+    public void togglePlayPause() {
+        webView.post(() -> webView.evaluateJavascript("togglePlayPauseWem()", null));
+    }
+
+    public void seekTo(double seconds) {
+        webView.post(() -> webView.evaluateJavascript("seekWemTo(" + seconds + ")", null));
+    }
+
     private class Bridge {
         @JavascriptInterface
         public void onPlaybackStarted() {

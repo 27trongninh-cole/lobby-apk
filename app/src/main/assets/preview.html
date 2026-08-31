@@ -60,6 +60,32 @@ function stopWemAudio() {
     currentAudioUrl = null;
   }
 }
+
+// ─── Điều khiển cho thanh playback native (SeekBar) ───
+// Trả JSON string qua evaluateJavascript callback vì WebView không hỗ trợ
+// trả object phức hợp trực tiếp — Android parse chuỗi JSON này.
+function getPlaybackState() {
+  const audio = document.getElementById('previewAudio');
+  const hasSrc = !!audio.src;
+  return JSON.stringify({
+    hasSrc: hasSrc,
+    playing: hasSrc && !audio.paused,
+    currentTime: hasSrc ? audio.currentTime : 0,
+    duration: (hasSrc && isFinite(audio.duration)) ? audio.duration : 0
+  });
+}
+
+function togglePlayPauseWem() {
+  const audio = document.getElementById('previewAudio');
+  if (!audio.src) return;
+  if (audio.paused) audio.play(); else audio.pause();
+}
+
+function seekWemTo(seconds) {
+  const audio = document.getElementById('previewAudio');
+  if (!audio.src) return;
+  audio.currentTime = seconds;
+}
 </script>
 </body>
 </html>
