@@ -244,6 +244,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             shizukuHelper = new ShizukuPermissionHelper(this, this::onShizukuStateChanged);
             btnRequestPermission.setOnClickListener(v -> shizukuHelper.requestPermission());
+            maybeShowShizukuIntro();
             shizukuHelper.checkAndNotify();
         }
 
@@ -256,6 +257,31 @@ public class MainActivity extends AppCompatActivity {
 
     // ─────────────────────────── Nút góc phải (log debug / sau này Settings) ───────────────────────────
 
+    private static final String KEY_SHIZUKU_INTRO_SHOWN = "shizuku_intro_shown";
+
+    /**
+     * Hiện đúng 1 LẦN duy nhất (cờ SharedPreferences) ở lần mở app đầu tiên,
+     * TRƯỚC khi Shizuku hỏi quyền thật — để người dùng biết đây là bước bắt
+     * buộc, không phải quyền tuỳ chọn có thể lờ đi. Không hiện lại nếu
+     * người dùng đã từng thấy, kể cả khi họ chưa cấp quyền.
+     */
+    private void maybeShowShizukuIntro() {
+        if (prefs.getBoolean(KEY_SHIZUKU_INTRO_SHOWN, false)) return;
+        prefs.edit().putBoolean(KEY_SHIZUKU_INTRO_SHOWN, true).apply();
+
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_shizuku_intro, null);
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.Theme_Echohall).setView(view).create();
+        dialog.setCancelable(false);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        view.findViewById(R.id.btnIntroContinue).setOnClickListener(v -> {
+            dialog.dismiss();
+            if (shizukuHelper != null) shizukuHelper.requestPermission();
+        });
+        dialog.show();
+    }
+
     private void onTopRightActionClicked() {
         // TODO(bản release): if (!BuildConfig.DEBUG) { mở SettingsActivity (sáng/tối,
         // ngôn ngữ, tài khoản) thay vì log; return; }
@@ -266,7 +292,7 @@ public class MainActivity extends AppCompatActivity {
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_log, null);
         TextView tvLog = view.findViewById(R.id.tvLog);
         tvLog.setText(logBuffer.toString());
-        AlertDialog dialog = new AlertDialog.Builder(this)
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.Theme_Echohall)
                 .setView(view)
                 .create();
         if (dialog.getWindow() != null) {
@@ -355,7 +381,7 @@ public class MainActivity extends AppCompatActivity {
         View emptyView = view.findViewById(R.id.tvPickerEmpty);
         rv.setLayoutManager(new LinearLayoutManager(this));
 
-        AlertDialog dialog = new AlertDialog.Builder(this).setView(view).create();
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.Theme_Echohall).setView(view).create();
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
@@ -452,7 +478,7 @@ public class MainActivity extends AppCompatActivity {
         View emptyView = view.findViewById(R.id.tvPickerEmpty);
         rv.setLayoutManager(new GridLayoutManager(this, 2));
 
-        AlertDialog dialog = new AlertDialog.Builder(this).setView(view).create();
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.Theme_Echohall).setView(view).create();
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
@@ -712,7 +738,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_confirm, null);
-        AlertDialog confirmDialog = new AlertDialog.Builder(this).setView(view).create();
+        AlertDialog confirmDialog = new AlertDialog.Builder(this, R.style.Theme_Echohall).setView(view).create();
         if (confirmDialog.getWindow() != null) {
             confirmDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }

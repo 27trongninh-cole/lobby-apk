@@ -110,10 +110,32 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
 
         if (item.thumbnailUrl != null && !item.thumbnailUrl.isEmpty()) {
             // Có sẵn ảnh thumbnail admin upload — dùng luôn, không cần trích
-            // khung hình từ video (nhanh hơn nhiều).
+            // khung hình từ video (nhanh hơn nhiều). TRƯỚC ĐÂY không có
+            // .listener(...) nên nếu Glide tải lỗi (link hỏng, hết hạn...)
+            // ảnh chỉ im lặng không hiện gì — khung nhìn trống trơn không rõ
+            // lý do. Giờ bắt lỗi rõ ràng và bật icon dự phòng khi fail.
             Glide.with(h.thumb.getContext())
                     .load(item.thumbnailUrl)
                     .centerCrop()
+                    .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                        @Override
+                        public boolean onLoadFailed(com.bumptech.glide.load.engine.GlideException e, Object model,
+                                                     com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                                                     boolean isFirstResource) {
+                            h.thumb.setVisibility(View.GONE);
+                            h.fallback.setVisibility(View.VISIBLE);
+                            return false;
+                        }
+
+                        @Override
+                        public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model,
+                                                        com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                                                        com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                            h.thumb.setVisibility(View.VISIBLE);
+                            h.fallback.setVisibility(View.GONE);
+                            return false;
+                        }
+                    })
                     .into(h.thumb);
         } else if (item.videoUrl != null && !item.videoUrl.isEmpty()) {
             // Không có thumbnail_url — trích khung hình ĐẦU của video, đúng

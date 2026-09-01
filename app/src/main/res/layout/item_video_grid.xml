@@ -4,15 +4,14 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
+    android:foreground="?attr/selectableItemBackground"
     android:padding="5dp">
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cardVideoThumb"
         style="@style/Widget.Hud.Card"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:clickable="true"
-        android:focusable="true">
+        android:layout_height="wrap_content">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"

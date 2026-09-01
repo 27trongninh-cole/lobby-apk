@@ -50,7 +50,7 @@
         <item name="strokeWidth">1dp</item>
         <item name="cardElevation">0dp</item>
         <item name="cardCornerRadius">0dp</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.Hud.Cut.Large</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Hud.Cut.Large</item>
     </style>
 
     <!-- ═══ Card/slot nhỏ bên trong panel (chọn nhạc, chọn video, hàng list,
@@ -61,7 +61,7 @@
         <item name="strokeWidth">1dp</item>
         <item name="cardElevation">0dp</item>
         <item name="cardCornerRadius">0dp</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.Hud.Cut.Small</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Hud.Cut.Small</item>
         <item name="rippleColor">@color/hud_accent_bg_muted</item>
     </style>
 
@@ -71,7 +71,7 @@
         <item name="strokeWidth">0dp</item>
         <item name="cardElevation">0dp</item>
         <item name="cardCornerRadius">0dp</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.Hud.Cut.Small</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Hud.Cut.Small</item>
         <item name="rippleColor">@color/hud_on_accent</item>
     </style>
 
@@ -82,7 +82,7 @@
         <item name="strokeWidth">1dp</item>
         <item name="cardElevation">0dp</item>
         <item name="cardCornerRadius">0dp</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.Hud.Cut.Small</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Hud.Cut.Small</item>
         <item name="rippleColor">@color/hud_accent_bg_muted</item>
     </style>
 
@@ -92,7 +92,7 @@
         <item name="strokeWidth">0dp</item>
         <item name="cardElevation">0dp</item>
         <item name="cardCornerRadius">0dp</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.Hud.Cut.Small</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Hud.Cut.Small</item>
         <item name="rippleColor">@color/hud_on_danger</item>
     </style>
 

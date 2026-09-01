@@ -102,14 +102,23 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_goneMarginTop="10dp">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent">
+                android:layout_height="match_parent"
+                android:clipChildren="true">
 
+                <!-- layout_gravity="center" BẮT BUỘC: CropVideoView cố ý tự đo
+                     kích thước LỚN HƠN khung (để phần dư bị crop ra ngoài,
+                     xem CropVideoView.onMeasure). FrameLayout là layout DUY
+                     NHẤT tôn trọng đúng kích thước tự đo đó khi đặt vị trí
+                     con — ConstraintLayout (dùng trước đây) sẽ ép view con về
+                     lại đúng kích thước khung khi layout(), vô hiệu hoá hoàn
+                     toàn cơ chế crop và làm video bị kéo dãn méo tỉ lệ. -->
                 <com.echohall.kgvn.CropVideoView
                     android:id="@+id/previewVideo"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center" />
 
                 <ImageView
                     android:id="@+id/previewOverlayImg"
@@ -122,16 +131,16 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_margin="8dp"
+                    android:layout_gravity="top|start"
                     style="@style/Text.Hud.Label"
                     android:text="PREVIEW.LOBBY"
-                    android:textSize="9sp"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintStart_toStartOf="parent" />
+                    android:textSize="9sp" />
 
                 <LinearLayout
                     android:id="@+id/overlayToggleChip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="top|end"
                     android:layout_margin="8dp"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
@@ -141,9 +150,7 @@
                     android:paddingTop="4dp"
                     android:paddingBottom="4dp"
                     android:clickable="true"
-                    android:focusable="true"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent">
+                    android:focusable="true">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -167,15 +174,14 @@
                     android:id="@+id/tvPreviewCaptionOverlay"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|start"
                     android:layout_margin="8dp"
                     android:background="#99050810"
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp"
                     android:textColor="@color/hud_text_primary"
                     android:textSize="10sp"
-                    android:visibility="gone"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent" />
+                    android:visibility="gone" />
 
                 <LinearLayout
                     android:id="@+id/previewEmptyOverlay"
@@ -192,7 +198,7 @@
                         app:tint="@color/hud_text_muted"
                         android:layout_marginBottom="6dp" />
                 </LinearLayout>
-            </androidx.constraintlayout.widget.ConstraintLayout>
+            </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <!-- ═══ THANH PLAYBACK NHẠC ═══ -->

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ═══ Khung giải thích quyền Shizuku — chỉ hiện 1 LẦN DUY NHẤT ở lần mở
+     app đầu tiên (cờ lưu SharedPreferences), TRƯỚC khi bật hộp thoại cấp
+     quyền thật của hệ thống Shizuku, để người dùng hiểu đây là bước bắt
+     buộc (không phải quyền tuỳ chọn có thể bấm "Từ chối" rồi lờ đi). ═══ -->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    style="@style/Widget.Hud.Panel">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="10dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_disc"
+                android:layout_marginEnd="7dp" />
+
+            <TextView
+                style="@style/Text.Hud.LabelAccent"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="YÊU CẦU BẮT BUỘC · SHIZUKU"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/hud_text_primary"
+            android:textSize="13sp"
+            android:lineSpacingExtra="3dp"
+            android:layout_marginBottom="8dp"
+            android:text="Melo Ninstaller cần quyền Shizuku để ghi file nhạc/video mod thẳng vào thư mục dữ liệu của game — không cần root máy." />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/hud_text_secondary"
+            android:textSize="12sp"
+            android:lineSpacingExtra="3dp"
+            android:layout_marginBottom="16dp"
+            android:text="Đây KHÔNG phải bước tuỳ chọn — thiếu quyền này, nút Cài Mod / Gỡ Mod sẽ luôn bị khoá. Ở bước tiếp theo, hãy chọn \"Cho phép\" khi Shizuku hỏi." />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnIntroContinue"
+            style="@style/Widget.Hud.Button.Primary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="11dp"
+                android:gravity="center"
+                android:text="ĐÃ HIỂU, TIẾP TỤC"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.06"
+                android:textColor="@color/hud_on_accent"
+                android:textStyle="bold"
+                android:textSize="12sp" />
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
