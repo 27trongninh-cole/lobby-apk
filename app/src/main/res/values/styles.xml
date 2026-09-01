@@ -9,7 +9,7 @@
          dimens.xml) để layout HUD giữ đúng tỉ lệ như bản phác thảo, không
          bị kéo giãn theo từng máy.
          ═══════════════════════════════════════════════════════════════ -->
-    <style name="Theme.Echohall" parent="Theme.MaterialComponents.DayNight.Dialog.NoActionBar">
+    <style name="Theme.Echohall" parent="Theme.MaterialComponents.DayNight.Dialog">
         <item name="android:windowIsFloating">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:backgroundDimEnabled">true</item>
@@ -97,7 +97,11 @@
     </style>
 
     <!-- ═══ Nhãn hệ thống kiểu "SHIZUKU // READY" — mono, letter-spacing rộng. ═══ -->
-    <style name="Text.Hud.Label">
+    <!-- parent="" bắt buộc phải ghi rõ — nếu không, Android tự suy ra parent
+         từ tên bằng cách cắt bỏ đoạn cuối ("Text.Hud.Label" -> "Text.Hud"),
+         và vì không có style nào tên "Text.Hud" nên AAPT báo lỗi "not found"
+         (đây chính là lỗi build vừa gặp). -->
+    <style name="Text.Hud.Label" parent="">
         <item name="android:fontFamily">monospace</item>
         <item name="android:textSize">10sp</item>
         <item name="android:letterSpacing">0.08</item>
