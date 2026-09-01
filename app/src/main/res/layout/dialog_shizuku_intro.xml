@@ -54,7 +54,7 @@
             android:textSize="12sp"
             android:lineSpacingExtra="3dp"
             android:layout_marginBottom="16dp"
-            android:text="Đây KHÔNG phải bước tuỳ chọn — thiếu quyền này, nút Cài Mod / Gỡ Mod sẽ luôn bị khoá. Ở bước tiếp theo, hãy chọn \"Cho phép\" khi Shizuku hỏi." />
+            android:text="Đây KHÔNG phải bước tuỳ chọn — thiếu quyền này, nút Cài Mod / Gỡ Mod sẽ luôn bị khoá. Ở bước tiếp theo, hãy chọn &quot;Cho phép&quot; khi Shizuku hỏi." />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/btnIntroContinue"
