@@ -34,8 +34,22 @@ import java.util.regex.Pattern;
 
 public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> {
 
-    /** 4 hàng x 2 cột = 8 video/trang — khớp chiều cao cố định 520dp của dialog_picker. */
-    public static final int PAGE_SIZE = 8;
+    /** MainActivity gán hàm log() của nó vào đây để lỗi tải thumbnail cũng
+     * hiện được trong màn LOG.DEBUG của app — không bắt người dùng phải mở
+     * logcat qua máy tính mới xem được lý do lỗi. */
+    public interface ThumbLogger {
+        void log(String message);
+    }
+
+    public static ThumbLogger logger;
+
+    private static void logThumb(String message) {
+        android.util.Log.w("MeloThumb", message);
+        if (logger != null) logger.log("⚠ " + message);
+    }
+
+    /** 3 hàng x 2 cột = 6 video/trang — khớp chiều cao cố định 520dp của dialog_picker. */
+    public static final int PAGE_SIZE = 6;
 
     public interface Listener {
         void onSelect(ApiClient.VideoItem item);
@@ -151,13 +165,17 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
             // ảnh chỉ im lặng không hiện gì — khung nhìn trống trơn không rõ
             // lý do. Giờ bắt lỗi rõ ràng và bật icon dự phòng khi fail.
             Glide.with(h.thumb.getContext())
-                    .load(item.thumbnailUrl)
+                    .load(new com.bumptech.glide.load.model.GlideUrl(item.thumbnailUrl,
+                            new com.bumptech.glide.load.model.LazyHeaders.Builder()
+                                    .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36")
+                                    .build()))
                     .centerCrop()
                     .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
                         @Override
                         public boolean onLoadFailed(com.bumptech.glide.load.engine.GlideException e, Object model,
                                                      com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
                                                      boolean isFirstResource) {
+                            logThumb("Glide lỗi tải ảnh bìa " + item.thumbnailUrl + ": " + (e != null ? e.getMessage() : "null"));
                             h.thumb.setVisibility(View.GONE);
                             h.fallback.setVisibility(View.VISIBLE);
                             return false;
@@ -205,7 +223,12 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
             Future<Bitmap> future = WATCHDOG_EXECUTOR.submit((Callable<Bitmap>) () -> {
                 MediaMetadataRetriever retriever = new MediaMetadataRetriever();
                 try {
-                    retriever.setDataSource(videoUrl, new java.util.HashMap<>());
+                    // THÊM User-Agent giả lập trình duyệt di động — 1 số CDN/anti-hotlink
+                    // chặn hoặc trả lỗi cho request không có User-Agent hợp lệ (client Java
+                    // mặc định không gửi UA, khác hẳn <video> trên web luôn có UA trình duyệt).
+                    java.util.HashMap<String, String> headers = new java.util.HashMap<>();
+                    headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36");
+                    retriever.setDataSource(videoUrl, headers);
                     return retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
                 } finally {
                     try {
@@ -227,8 +250,12 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
                 frame = future.get(6, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
                 future.cancel(true);
-            } catch (Exception ignored) {
-                // Video lỗi/không truy cập được — giữ frame = null, sẽ fallback icon.
+                logThumb("Timeout trích khung hình: " + videoUrl);
+            } catch (Exception e) {
+                // TRƯỚC ĐÂY lỗi này bị nuốt hoàn toàn im lặng — không cách nào
+                // biết được lý do thật sự khiến thumbnail luôn trống. Giờ log
+                // rõ loại lỗi + URL để lần sau xem LOG.DEBUG là biết ngay.
+                logThumb("Lỗi trích khung hình từ " + videoUrl + ": " + e.getClass().getSimpleName() + " — " + e.getMessage());
             } finally {
                 synchronized (inFlight) {
                     inFlight.remove(videoUrl);

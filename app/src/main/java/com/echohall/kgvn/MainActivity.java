@@ -11,6 +11,7 @@ import android.widget.SeekBar;
 import android.text.format.DateFormat;
 import android.text.format.DateUtils;
 import android.view.LayoutInflater;
+import android.view.WindowManager;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
@@ -36,9 +37,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.text.Collator;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Màn hình chính — bản redesign v2 (1 màn hình cố định, không cuộn).
@@ -177,6 +181,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        VideoGridAdapter.logger = this::log;
 
         tvShizukuDotView = findViewById(R.id.tvShizukuDotView);
         tvShizukuStatus = findViewById(R.id.tvShizukuStatus);
@@ -336,6 +341,25 @@ public class MainActivity extends AppCompatActivity {
     private int videoRetryCount = 0;
     private final Handler retryHandler = new Handler(Looper.getMainLooper());
 
+    /**
+     * Sắp xếp alphabet — dùng Collator tiếng Việt thay vì so sánh chuỗi
+     * thường, để thứ tự đúng theo mặt chữ có dấu (VD: "Đêm" xếp đúng chỗ
+     * chứ không bị đẩy xuống cuối như so sánh Unicode thô).
+     */
+    private static final Collator VI_COLLATOR = Collator.getInstance(new Locale("vi", "VN"));
+
+    private void sortWemLibraryAlphabetically() {
+        if (wemLibrary == null) return;
+        Collections.sort(wemLibrary, (a, b) -> VI_COLLATOR.compare(
+                a.name == null ? "" : a.name, b.name == null ? "" : b.name));
+    }
+
+    private void sortVideoLibraryAlphabetically() {
+        if (videoLibrary == null) return;
+        Collections.sort(videoLibrary, (a, b) -> VI_COLLATOR.compare(
+                a.name == null ? "" : a.name, b.name == null ? "" : b.name));
+    }
+
     private void loadLibraries() {
         wemLoading = true;
         videoLoading = true;
@@ -348,6 +372,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<ApiClient.WemItem> result) {
                 wemLibrary = result;
+                sortWemLibraryAlphabetically();
                 wemLoading = false;
                 wemRetryCount = 0;
                 if (selectedWem == null) tvSelectedWem.setText("Chưa chọn");
@@ -377,6 +402,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<ApiClient.VideoItem> result) {
                 videoLibrary = result;
+                sortVideoLibraryAlphabetically();
                 videoLoading = false;
                 videoRetryCount = 0;
                 if (selectedVideoFromLibrary == null && selectedVideoUploadUri == null) tvSelectedVideo.setText("Chưa chọn");
@@ -551,6 +577,7 @@ public class MainActivity extends AppCompatActivity {
 
         view.findViewById(R.id.btnPickerCloseIcon).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
+        lockDialogHeight(dialog, 520);
     }
 
     private void openVideoPickerDialog() {
@@ -628,6 +655,23 @@ public class MainActivity extends AppCompatActivity {
 
         view.findViewById(R.id.btnPickerCloseIcon).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
+        lockDialogHeight(dialog, 520);
+    }
+
+    /**
+     * Ép chiều cao cửa sổ dialog cố định bằng code — dù panel bên trong đã
+     * khai layout_height="520dp", cửa sổ AlertDialog mặc định vẫn đo theo
+     * kiểu wrap_content ở cấp window, nên nội dung có ít item hơn (trang
+     * cuối) có thể khiến cả cửa sổ co lại theo. Set trực tiếp
+     * WindowManager.LayoutParams để cửa sổ luôn giữ đúng 1 kích thước bất
+     * kể trang nào đang hiển thị.
+     */
+    private void lockDialogHeight(AlertDialog dialog, int heightDp) {
+        if (dialog.getWindow() == null) return;
+        int px = Math.round(heightDp * getResources().getDisplayMetrics().density);
+        WindowManager.LayoutParams lp = dialog.getWindow().getAttributes();
+        lp.height = px;
+        dialog.getWindow().setAttributes(lp);
     }
 
     private String queryDisplayName(Uri uri) {
