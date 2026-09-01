@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- ═══ Dialog xác nhận hành động nguy hiểm (Gỡ toàn bộ mod) — viền đỏ
+     cảnh báo, dùng chung style với các panel khác. MainActivity tự set
+     tiêu đề/nội dung qua tvConfirmTitle/tvConfirmMessage. ═══ -->
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    style="@style/Widget.Hud.Panel">
+    style="@style/Widget.Hud.Panel"
+    app:strokeColor="@color/hud_border_danger">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -12,21 +16,41 @@
         android:orientation="vertical"
         android:padding="14dp">
 
-        <TextView
-            style="@style/Text.Hud.LabelAccent"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="ĐÃ TẠO MOD XONG"
-            android:textSize="10.5sp"
-            android:layout_marginBottom="4dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:layout_width="15dp"
+                android:layout_height="15dp"
+                android:src="@drawable/ic_alert_triangle"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:id="@+id/tvConfirmTitle"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.06"
+                android:textStyle="bold"
+                android:textColor="@color/hud_danger"
+                android:textSize="10.5sp"
+                android:text="GỠ TOÀN BỘ TRANG BỊ" />
+        </LinearLayout>
 
         <TextView
-            android:layout_width="wrap_content"
+            android:id="@+id/tvConfirmMessage"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Cài ngay vào game không?"
             android:textColor="@color/hud_text_secondary"
-            android:textSize="13sp"
-            android:layout_marginBottom="16dp" />
+            android:textSize="12.5sp"
+            android:lineSpacingExtra="2dp"
+            android:layout_marginBottom="14dp"
+            android:text="Khôi phục nguyên trạng nhạc và video đăng nhập về bản gốc của game. Thao tác không hoàn tác." />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -34,7 +58,7 @@
             android:orientation="horizontal">
 
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/btnDialogLater"
+                android:id="@+id/btnConfirmCancel"
                 style="@style/Widget.Hud.Button.Ghost"
                 android:layout_width="0dp"
                 android:layout_weight="1"
@@ -46,19 +70,19 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:paddingVertical="10dp"
+                    android:paddingVertical="9dp"
                     android:gravity="center"
-                    android:text="ĐỂ SAU"
+                    android:text="HUỶ"
                     android:fontFamily="monospace"
-                    android:letterSpacing="0.06"
+                    android:letterSpacing="0.08"
                     android:textColor="@color/hud_text_secondary"
                     android:textStyle="bold"
                     android:textSize="11sp" />
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/btnDialogInstallNow"
-                style="@style/Widget.Hud.Button.Primary"
+                android:id="@+id/btnConfirmOk"
+                style="@style/Widget.Hud.Button.Danger"
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
@@ -69,15 +93,16 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:paddingVertical="10dp"
+                    android:paddingVertical="9dp"
                     android:gravity="center"
-                    android:text="CÀI NGAY"
+                    android:text="XÁC NHẬN GỠ"
                     android:fontFamily="monospace"
                     android:letterSpacing="0.06"
-                    android:textColor="@color/hud_on_accent"
+                    android:textColor="@color/hud_on_danger"
                     android:textStyle="bold"
                     android:textSize="11sp" />
             </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

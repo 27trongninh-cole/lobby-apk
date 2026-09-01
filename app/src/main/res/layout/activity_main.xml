@@ -1,488 +1,490 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- ═══════════════════════════════════════════════════════════════════
+     Màn hình chính — redesign HUD (góc vát kim cương, nhãn hệ thống mono,
+     nút "KÍCH HOẠT TRANG BỊ"). Toàn bộ nội dung nằm trong 1
+     Widget.Hud.Panel (MaterialCardView góc vát lớn) — panel này CHÍNH LÀ
+     nội dung của cửa sổ nổi (Theme.Echohall windowIsFloating), không cần
+     thêm nền/viền nào khác bên ngoài.
+     ═══════════════════════════════════════════════════════════════════ -->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#0a0e16">
+    android:layout_height="wrap_content"
+    style="@style/Widget.Hud.Panel">
 
-    <!-- ═══ HEADER ═══ -->
-    <ImageView
-        android:id="@+id/logoChip"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:src="@drawable/logo_header"
-        android:scaleType="fitCenter"
-        android:layout_marginStart="18dp"
-        android:layout_marginTop="14dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Melo Ninstaller"
-        android:textColor="#eef4ff"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:layout_marginStart="10dp"
-        app:layout_constraintTop_toTopOf="@id/logoChip"
-        app:layout_constraintBottom_toBottomOf="@id/logoChip"
-        app:layout_constraintStart_toEndOf="@id/logoChip" />
-
-    <ImageView
-        android:id="@+id/btnTopRightAction"
-        android:layout_width="34dp"
-        android:layout_height="34dp"
-        android:padding="8dp"
-        android:background="@drawable/bg_ghost_v2"
-        android:src="@drawable/ic_terminal"
-        android:layout_marginEnd="18dp"
-        android:clickable="true"
-        android:focusable="true"
-        app:layout_constraintTop_toTopOf="@id/logoChip"
-        app:layout_constraintBottom_toBottomOf="@id/logoChip"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <LinearLayout
-        android:id="@+id/shizukuPill"
-        android:layout_width="wrap_content"
-        android:layout_height="0dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/bg_pill_soft"
-        android:paddingHorizontal="11dp"
-        android:layout_marginEnd="10dp"
-        app:layout_constraintTop_toTopOf="@id/logoChip"
-        app:layout_constraintBottom_toBottomOf="@id/logoChip"
-        app:layout_constraintEnd_toStartOf="@id/btnTopRightAction">
-
-        <View
-            android:id="@+id/tvShizukuDotView"
-            android:layout_width="6dp"
-            android:layout_height="6dp"
-            android:background="@drawable/dot_indicator"
-            android:layout_marginEnd="6dp" />
-
-        <TextView
-            android:id="@+id/tvShizukuStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Đang kiểm tra..."
-            android:textColor="#a9b7cc"
-            android:textSize="10.5sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- Nút cấp quyền — TRƯỚC ĐÂY bị khung preview đè lên hoàn toàn vì cả 2
-         cùng neo topToBottomOf logoChip (trùng vị trí, preview vẽ sau nên
-         che mất nút, chỉ lộ 1 sợi màu mỏng ở viền trên preview). Giờ ép
-         preview phải neo NGAY DƯỚI nút này (topToBottomOf btnRequestPermission)
-         — khi nút ẩn (GONE) preview tự động nhảy sát lên đúng vị trí cũ nhờ
-         cơ chế collapse của ConstraintLayout, không cần logic đặc biệt gì. -->
-    <TextView
-        android:id="@+id/btnRequestPermission"
-        android:layout_width="0dp"
-        android:layout_height="38dp"
-        android:layout_marginHorizontal="18dp"
-        android:layout_marginTop="12dp"
-        android:background="@drawable/bg_gradient_cta"
-        android:text="Cấp quyền Shizuku"
-        android:textColor="#ffffff"
-        android:textStyle="bold"
-        android:textSize="12.5sp"
-        android:gravity="center"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/logoChip"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- ═══ PREVIEW 16:9 — bo góc thật (clipToOutline), crop lấp đầy. ═══ -->
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/previewClipFrame"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="@drawable/bg_preview_frame"
-        android:clipToOutline="true"
-        android:layout_marginHorizontal="18dp"
-        android:layout_marginTop="14dp"
-        app:layout_constraintDimensionRatio="16:9"
-        app:layout_constraintTop_toBottomOf="@id/btnRequestPermission"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="14dp">
 
-        <com.echohall.kgvn.CropVideoView
-            android:id="@+id/previewVideo"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-
-        <ImageView
-            android:id="@+id/previewOverlayImg"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:src="@drawable/preview_overlay"
-            android:scaleType="centerCrop" />
-
-        <!-- Toggle bật/tắt overlay — TRƯỚC ĐÂY dùng layout_gravity="top|end"
-             nhưng cha đã đổi thành ConstraintLayout (không hiểu
-             layout_gravity), nên rơi về góc trên-TRÁI mặc định. Giờ ghim
-             đúng bằng app:layout_constraint (top+end = bên phải, đúng yêu
-             cầu). -->
+        <!-- ═══ HEADER: trạng thái Shizuku kiểu log hệ thống ═══ -->
         <LinearLayout
-            android:id="@+id/overlayToggleChip"
-            android:layout_width="wrap_content"
+            android:id="@+id/shizukuPill"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="10dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:background="#80000000"
-            android:paddingStart="10dp"
-            android:paddingEnd="7dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnTopRightAction">
+
+            <View
+                android:id="@+id/tvShizukuDotView"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:rotation="45"
+                android:background="@drawable/dot_indicator"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/tvShizukuStatus"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                style="@style/Text.Hud.LabelAccent"
+                android:text="SHIZUKU // ĐANG KIỂM TRA"
+                android:ellipsize="end"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/btnTopRightAction"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_terminal"
             android:clickable="true"
             android:focusable="true"
-            app:layout_constraintTop_toTopOf="parent"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:layout_constraintTop_toTopOf="@id/shizukuPill"
+            app:layout_constraintBottom_toBottomOf="@id/shizukuPill"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Nút cấp quyền — neo dưới header, preview tự nhảy lên khi nút GONE. -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnRequestPermission"
+            style="@style/Widget.Hud.Button.Primary"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true"
+            app:layout_constraintTop_toBottomOf="@id/shizukuPill"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:id="@+id/tvRequestPermissionLabel"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="UI"
-                android:textColor="#ffffff"
-                android:textSize="9sp"
+                android:paddingVertical="9dp"
+                android:gravity="center"
+                android:text="CẤP QUYỀN SHIZUKU"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.06"
+                android:textColor="@color/hud_on_accent"
                 android:textStyle="bold"
-                android:layout_marginEnd="5dp" />
+                android:textSize="12sp" />
+        </com.google.android.material.card.MaterialCardView>
 
-            <TextView
-                android:id="@+id/tvOverlayToggleState"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="●"
-                android:textColor="#6d9bf5"
-                android:textSize="13sp" />
-        </LinearLayout>
+        <!-- ═══ PREVIEW 16:9 ═══ -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/previewClipFrame"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            style="@style/Widget.Hud.Card"
+            android:layout_marginTop="10dp"
+            app:layout_constraintDimensionRatio="16:9"
+            app:layout_constraintTop_toBottomOf="@id/btnRequestPermission"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_goneMarginTop="10dp">
 
-        <TextView
-            android:id="@+id/tvPreviewCaptionOverlay"
-            android:layout_width="wrap_content"
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <com.echohall.kgvn.CropVideoView
+                    android:id="@+id/previewVideo"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <ImageView
+                    android:id="@+id/previewOverlayImg"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/preview_overlay"
+                    android:scaleType="centerCrop" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="8dp"
+                    style="@style/Text.Hud.Label"
+                    android:text="PREVIEW.LOBBY"
+                    android:textSize="9sp"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent" />
+
+                <LinearLayout
+                    android:id="@+id/overlayToggleChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="8dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="#99050810"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="6dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="UI"
+                        android:fontFamily="monospace"
+                        android:textColor="@color/hud_text_secondary"
+                        android:textSize="8.5sp"
+                        android:layout_marginEnd="5dp" />
+
+                    <TextView
+                        android:id="@+id/tvOverlayToggleState"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="◆"
+                        android:textColor="@color/hud_accent"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvPreviewCaptionOverlay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="8dp"
+                    android:background="#99050810"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp"
+                    android:textColor="@color/hud_text_primary"
+                    android:textSize="10sp"
+                    android:visibility="gone"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent" />
+
+                <LinearLayout
+                    android:id="@+id/previewEmptyOverlay"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="#cc0b1120"
+                    android:gravity="center"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/ic_play"
+                        app:tint="@color/hud_text_muted"
+                        android:layout_marginBottom="6dp" />
+                </LinearLayout>
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═══ THANH PLAYBACK NHẠC ═══ -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/layoutPlaybackBar"
+            style="@style/Widget.Hud.Card"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="10dp"
-            android:background="#80000000"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="4dp"
-            android:textColor="#eef4ff"
-            android:textSize="10sp"
+            android:layout_marginTop="8dp"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
+            app:layout_constraintTop_toBottomOf="@id/previewClipFrame"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
-        <LinearLayout
-            android:id="@+id/previewEmptyOverlay"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#8a0a0e16"
-            android:gravity="center"
-            android:padding="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Chọn nhạc + video để xem trước tại đây"
-                android:textColor="#ffffff"
-                android:textStyle="bold"
-                android:textSize="12sp"
-                android:gravity="center" />
-        </LinearLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="6dp">
 
-    <!-- ═══ THANH PLAYBACK NHẠC — ngay dưới khung preview, chỉ hiện khi đã
-         chọn 1 bài nhạc. ═══ -->
-    <LinearLayout
-        android:id="@+id/layoutPlaybackBar"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/bg_card_v2"
-        android:paddingHorizontal="10dp"
-        android:paddingVertical="6dp"
-        android:layout_marginHorizontal="18dp"
-        android:layout_marginTop="10dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/previewClipFrame"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+                <ImageView
+                    android:id="@+id/btnPlaybackToggle"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="6dp"
+                    app:tint="@color/hud_accent"
+                    android:src="@drawable/ic_play"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackgroundBorderless" />
 
-        <ImageView
-            android:id="@+id/btnPlaybackToggle"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:padding="8dp"
-            android:background="@drawable/bg_icon_chip"
-            android:src="@drawable/ic_play"
+                <SeekBar
+                    android:id="@+id/seekPlayback"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="6dp"
+                    android:progressTint="@color/hud_accent"
+                    android:thumbTint="@color/hud_accent"
+                    android:max="1000" />
+
+                <TextView
+                    android:id="@+id/tvPlaybackTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="0:00 / 0:00"
+                    android:textColor="@color/hud_text_muted"
+                    android:textSize="9.5sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═══ 2 SLOT CHỌN NHẠC / VIDEO ═══ -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardChooseWem"
+            style="@style/Widget.Hud.Card"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
             android:clickable="true"
-            android:focusable="true" />
+            android:focusable="true"
+            app:layout_constraintTop_toBottomOf="@id/layoutPlaybackBar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/cardChooseVideo"
+            app:layout_constraintWidth_percent="0.475"
+            app:layout_goneMarginTop="10dp">
 
-        <SeekBar
-            android:id="@+id/seekPlayback"
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="9dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_disc"
+                    android:layout_marginEnd="8dp" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Text.Hud.Label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="SLOT A · NHẠC"
+                        android:textSize="8sp" />
+
+                    <TextView
+                        android:id="@+id/tvSelectedWem"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Chưa chọn"
+                        android:textColor="@color/hud_text_primary"
+                        android:textSize="11.5sp"
+                        android:ellipsize="end"
+                        android:singleLine="true"
+                        android:layout_marginTop="1dp" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardChooseVideo"
+            style="@style/Widget.Hud.Card"
             android:layout_width="0dp"
-            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="8dp"
-            android:progressTint="#6d7bf5"
-            android:thumbTint="#8a6bf0"
-            android:max="1000" />
+            android:clickable="true"
+            android:focusable="true"
+            app:layout_constraintTop_toTopOf="@id/cardChooseWem"
+            app:layout_constraintStart_toEndOf="@id/cardChooseWem"
+            app:layout_constraintEnd_toEndOf="parent">
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="9dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_movie"
+                    android:layout_marginEnd="8dp" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Text.Hud.Label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="SLOT B · VIDEO"
+                        android:textSize="8sp" />
+
+                    <TextView
+                        android:id="@+id/tvSelectedVideo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Chưa chọn"
+                        android:textColor="@color/hud_text_primary"
+                        android:textSize="11.5sp"
+                        android:ellipsize="end"
+                        android:singleLine="true"
+                        android:layout_marginTop="1dp" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═══ CÀI GẦN ĐÂY ═══ -->
         <TextView
-            android:id="@+id/tvPlaybackTime"
-            android:layout_width="wrap_content"
+            android:id="@+id/tvRecentLabel"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="0:00 / 0:00"
-            android:textColor="#8a97ad"
-            android:textSize="10sp" />
-    </LinearLayout>
-
-    <!-- ═══ 2 THẺ CHỌN NHẠC / VIDEO ═══ -->
-    <LinearLayout
-        android:id="@+id/cardChooseWem"
-        android:layout_width="0dp"
-        android:layout_height="64dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/bg_card_v2"
-        android:paddingHorizontal="12dp"
-        android:layout_marginStart="18dp"
-        android:layout_marginTop="12dp"
-        android:layout_marginEnd="7dp"
-        android:clickable="true"
-        android:focusable="true"
-        app:layout_constraintTop_toBottomOf="@id/layoutPlaybackBar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/cardChooseVideo"
-        app:layout_constraintWidth_percent="0.47"
-        app:layout_goneMarginTop="12dp">
-
-        <ImageView
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:padding="8dp"
-            android:background="@drawable/bg_icon_chip"
-            android:src="@drawable/ic_music_note"
-            android:layout_marginEnd="10dp" />
+            style="@style/Text.Hud.Label"
+            android:text="CÀI GẦN ĐÂY · BẤM ĐỂ CHỌN LẠI"
+            android:textSize="8sp"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/cardChooseWem"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <LinearLayout
+            android:id="@+id/layoutRecentList"
             android:layout_width="0dp"
-            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:layout_marginTop="6dp"
+            app:layout_constraintTop_toBottomOf="@id/tvRecentLabel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="NHẠC"
-                android:textColor="#5c6b85"
-                android:textSize="8.5sp"
-                android:letterSpacing="0.06"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvSelectedWem"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Chưa chọn"
-                android:textColor="#eef4ff"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:ellipsize="end"
-                android:singleLine="true" />
-        </LinearLayout>
-
-        <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:src="@drawable/ic_chevron_down"
-            android:layout_marginStart="4dp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/cardChooseVideo"
-        android:layout_width="0dp"
-        android:layout_height="64dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/bg_card_v2"
-        android:paddingHorizontal="12dp"
-        android:layout_marginEnd="18dp"
-        android:clickable="true"
-        android:focusable="true"
-        app:layout_constraintTop_toTopOf="@id/cardChooseWem"
-        app:layout_constraintStart_toEndOf="@id/cardChooseWem"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <ImageView
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:padding="8dp"
-            android:background="@drawable/bg_icon_chip"
-            android:src="@drawable/ic_movie"
-            android:layout_marginEnd="10dp" />
-
-        <LinearLayout
+        <!-- ═══ PROGRESS ═══ -->
+        <TextView
+            android:id="@+id/tvProgressLabel"
             android:layout_width="0dp"
-            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:fontFamily="monospace"
+            android:textColor="@color/hud_text_muted"
+            android:textSize="9.5sp"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/layoutRecentList"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="0dp"
+            android:layout_height="6dp"
+            android:max="100"
+            android:progressTint="@color/hud_accent"
+            android:progressBackgroundTint="@color/hud_surface_1"
+            android:visibility="gone"
+            android:layout_marginTop="4dp"
+            app:layout_constraintTop_toBottomOf="@id/tvProgressLabel"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- ═══ NÚT HÀNH ĐỘNG ═══ -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnInstall"
+            style="@style/Widget.Hud.Button.Primary"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:alpha="0.4"
+            app:layout_constraintTop_toBottomOf="@id/progressBar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="VIDEO"
-                android:textColor="#5c6b85"
-                android:textSize="8.5sp"
-                android:letterSpacing="0.06"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvSelectedVideo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Chưa chọn"
-                android:textColor="#eef4ff"
-                android:textSize="12sp"
+                android:paddingVertical="13dp"
+                android:gravity="center"
+                android:text="KÍCH HOẠT TRANG BỊ"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.1"
+                android:textColor="@color/hud_on_accent"
                 android:textStyle="bold"
-                android:ellipsize="end"
-                android:singleLine="true" />
-        </LinearLayout>
+                android:textSize="13sp" />
+        </com.google.android.material.card.MaterialCardView>
 
-        <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:src="@drawable/ic_chevron_down"
-            android:layout_marginStart="4dp" />
-    </LinearLayout>
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnReinstallLast"
+            style="@style/Widget.Hud.Button.Ghost"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/btnInstall"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnUninstallAll"
+            app:layout_constraintWidth_percent="0.475">
 
-    <!-- ═══ KHU "CÀI GẦN ĐÂY" ═══ -->
-    <TextView
-        android:id="@+id/tvRecentLabel"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="CÀI GẦN ĐÂY · BẤM ĐỂ CHỌN LẠI"
-        android:textColor="#5c6b85"
-        android:textSize="8.5sp"
-        android:letterSpacing="0.06"
-        android:textStyle="bold"
-        android:layout_marginStart="18dp"
-        android:layout_marginTop="16dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/cardChooseWem"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="10dp"
+                android:gravity="center"
+                android:text="GẦN NHẤT"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08"
+                android:textColor="@color/hud_text_secondary"
+                android:textStyle="bold"
+                android:textSize="10.5sp" />
+        </com.google.android.material.card.MaterialCardView>
 
-    <LinearLayout
-        android:id="@+id/layoutRecentList"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginHorizontal="18dp"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/tvRecentLabel"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnUninstallAll"
+            style="@style/Widget.Hud.Button.Ghost"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:strokeColor="@color/hud_border_danger"
+            app:layout_goneMarginStart="0dp"
+            app:layout_constraintTop_toTopOf="@id/btnReinstallLast"
+            app:layout_constraintStart_toEndOf="@id/btnReinstallLast"
+            app:layout_constraintEnd_toEndOf="parent">
 
-    <!-- ═══ CỤM NÚT HÀNH ĐỘNG — luôn neo sát đáy màn hình ═══ -->
-    <ProgressBar
-        android:id="@+id/progressBar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:max="100"
-        android:progressTint="#6d7bf5"
-        android:visibility="gone"
-        android:layout_marginHorizontal="18dp"
-        app:layout_constraintBottom_toTopOf="@id/tvProgressLabel"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="10dp"
+                android:gravity="center"
+                android:text="GỠ MOD"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08"
+                android:textColor="@color/hud_danger"
+                android:textStyle="bold"
+                android:textSize="10.5sp" />
+        </com.google.android.material.card.MaterialCardView>
 
-    <TextView
-        android:id="@+id/tvProgressLabel"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:textColor="#8a97ad"
-        android:textSize="11sp"
-        android:gravity="center"
-        android:visibility="gone"
-        android:layout_marginHorizontal="18dp"
-        android:layout_marginBottom="10dp"
-        app:layout_constraintBottom_toTopOf="@id/btnInstall"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <TextView
-        android:id="@+id/btnInstall"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:background="@drawable/bg_gradient_cta"
-        android:text="📦  Cài Mod"
-        android:textColor="#ffffff"
-        android:textStyle="bold"
-        android:textSize="15sp"
-        android:gravity="center"
-        android:clickable="true"
-        android:focusable="true"
-        android:alpha="0.4"
-        android:layout_marginHorizontal="18dp"
-        android:layout_marginBottom="10dp"
-        app:layout_constraintBottom_toTopOf="@id/btnUninstallAll"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- Gỡ Mod TRƯỚC ĐÂY bị lệch sát mép trái: khi btnReinstallLast ẩn
-         (GONE), ConstraintLayout tự triệt tiêu margin của cạnh nối tới 1 view
-         GONE về 0 — nên constraintStart_toEndOf một view rỗng đã vô tình mất
-         luôn margin 18dp áp cho phía trái. layout_goneMarginStart chỉ định
-         rõ margin cần dùng riêng cho trường hợp view kia đang GONE, khắc
-         phục đúng bug này. -->
-    <TextView
-        android:id="@+id/btnReinstallLast"
-        android:layout_width="0dp"
-        android:layout_height="46dp"
-        android:background="@drawable/bg_ghost_v2"
-        android:text="🔁  Cài lại gần nhất"
-        android:textColor="#a9b7cc"
-        android:textStyle="bold"
-        android:textSize="11sp"
-        android:gravity="center"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone"
-        android:layout_marginStart="18dp"
-        android:layout_marginEnd="7dp"
-        android:layout_marginBottom="18dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/btnUninstallAll"
-        app:layout_constraintWidth_percent="0.47" />
-
-    <TextView
-        android:id="@+id/btnUninstallAll"
-        android:layout_width="0dp"
-        android:layout_height="46dp"
-        android:background="@drawable/bg_ghost_v2"
-        android:text="🗑️  Gỡ Mod"
-        android:textColor="#f0958e"
-        android:textStyle="bold"
-        android:textSize="11sp"
-        android:gravity="center"
-        android:clickable="true"
-        android:focusable="true"
-        android:layout_marginStart="7dp"
-        android:layout_marginEnd="18dp"
-        android:layout_marginBottom="18dp"
-        app:layout_goneMarginStart="18dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/btnReinstallLast"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

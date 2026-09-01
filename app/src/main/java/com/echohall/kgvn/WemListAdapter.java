@@ -3,10 +3,14 @@ package com.echohall.kgvn;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.card.MaterialCardView;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -18,7 +22,7 @@ public class WemListAdapter extends RecyclerView.Adapter<WemListAdapter.VH> {
 
     public interface Listener {
         void onSelect(ApiClient.WemItem item);
-        void onPlayPreview(ApiClient.WemItem item, TextView playButton);
+        void onPlayPreview(ApiClient.WemItem item, ImageView playButton);
     }
 
     private final List<ApiClient.WemItem> all;
@@ -71,9 +75,17 @@ public class WemListAdapter extends RecyclerView.Adapter<WemListAdapter.VH> {
         ApiClient.WemItem item = filtered.get(position);
         h.name.setText(item.name);
         h.duration.setText(formatDuration(item.durationMs == null ? 0 : item.durationMs));
-        h.itemView.setSelected(item.id != null && item.id.equals(selectedId));
+
+        boolean selected = item.id != null && item.id.equals(selectedId);
+        h.badge.setVisibility(selected ? View.VISIBLE : View.GONE);
+        h.card.setStrokeColor(ContextCompat.getColor(h.card.getContext(),
+                selected ? R.color.hud_accent : R.color.hud_border));
+        h.card.setCardBackgroundColor(ContextCompat.getColor(h.card.getContext(),
+                selected ? R.color.hud_accent_bg_muted : R.color.hud_surface_1));
+
         h.itemView.setOnClickListener(v -> listener.onSelect(item));
-        h.playBtn.setText("▶");
+        h.playBtn.setImageResource(R.drawable.ic_play);
+        h.playBtn.setAlpha(1f);
         h.playBtn.setOnClickListener(v -> listener.onPlayPreview(item, h.playBtn));
     }
 
@@ -91,12 +103,16 @@ public class WemListAdapter extends RecyclerView.Adapter<WemListAdapter.VH> {
     }
 
     static class VH extends RecyclerView.ViewHolder {
-        TextView name, duration, playBtn;
+        MaterialCardView card;
+        TextView name, duration, badge;
+        ImageView playBtn;
 
         VH(@NonNull View itemView) {
             super(itemView);
+            card = (MaterialCardView) itemView;
             name = itemView.findViewById(R.id.tvWemName);
             duration = itemView.findViewById(R.id.tvWemDuration);
+            badge = itemView.findViewById(R.id.tvWemSelectedBadge);
             playBtn = itemView.findViewById(R.id.btnWemPlay);
         }
     }

@@ -64,7 +64,8 @@ public class MainActivity extends AppCompatActivity {
 
     private View tvShizukuDotView;
     private TextView tvShizukuStatus;
-    private TextView btnRequestPermission;
+    private View btnRequestPermission;
+    private TextView tvRequestPermissionLabel;
     private ImageView btnTopRightAction;
 
     private TextView tvSelectedWem;
@@ -129,9 +130,9 @@ public class MainActivity extends AppCompatActivity {
 
     private ProgressBar progressBar;
     private TextView tvProgressLabel;
-    private TextView btnInstall;
-    private TextView btnReinstallLast;
-    private TextView btnUninstallAll;
+    private View btnInstall;
+    private View btnReinstallLast;
+    private View btnUninstallAll;
 
     private StringBuilder logBuffer = new StringBuilder();
 
@@ -175,6 +176,7 @@ public class MainActivity extends AppCompatActivity {
         tvShizukuDotView = findViewById(R.id.tvShizukuDotView);
         tvShizukuStatus = findViewById(R.id.tvShizukuStatus);
         btnRequestPermission = findViewById(R.id.btnRequestPermission);
+        tvRequestPermissionLabel = findViewById(R.id.tvRequestPermissionLabel);
         btnTopRightAction = findViewById(R.id.btnTopRightAction);
 
         tvSelectedWem = findViewById(R.id.tvSelectedWem);
@@ -346,7 +348,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_picker, null);
-        ((TextView) view.findViewById(R.id.tvPickerTitle)).setText("Chọn bài nhạc");
+        ((TextView) view.findViewById(R.id.tvPickerTitle)).setText("KHO VẬT PHẨM // NHẠC");
         EditText search = view.findViewById(R.id.etPickerSearch);
         search.setHint("Tìm bài nhạc...");
         RecyclerView rv = view.findViewById(R.id.rvPickerList);
@@ -357,6 +359,17 @@ public class MainActivity extends AppCompatActivity {
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
+
+        // Tự tải nhạc lên: tính năng CHƯA làm (xem README — cần convert
+        // .wav sang .wem trước khi có thể dùng) — hiện ô này ở vị trí dễ
+        // thấy nhất nhưng khoá lại, kèm badge "SẮP RA MẮT" thay vì ẩn hẳn,
+        // để người dùng biết tính năng đang được chuẩn bị.
+        com.google.android.material.card.MaterialCardView uploadRow = view.findViewById(R.id.btnPickerUpload);
+        ((TextView) view.findViewById(R.id.tvPickerUploadTitle)).setText("TỰ TẢI NHẠC LÊN");
+        ((TextView) view.findViewById(R.id.tvPickerUploadSubtitle)).setText("Chọn file .wav từ máy của bạn");
+        view.findViewById(R.id.tvPickerUploadBadge).setVisibility(View.VISIBLE);
+        uploadRow.setAlpha(0.5f);
+        uploadRow.setClickable(false);
 
         WemListAdapter adapter = new WemListAdapter(wemLibrary, selectedWem == null ? null : selectedWem.id,
                 new WemListAdapter.Listener() {
@@ -370,12 +383,12 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     @Override
-                    public void onPlayPreview(ApiClient.WemItem item, TextView playButton) {
-                        playButton.setText("…");
+                    public void onPlayPreview(ApiClient.WemItem item, ImageView playButton) {
+                        playButton.setAlpha(0.35f);
                         apiClient.fetchWemPreviewBytes(item.id, new ApiClient.Callback<byte[]>() {
                             @Override
                             public void onSuccess(byte[] result) {
-                                runOnUiThread(() -> playButton.setText("▶"));
+                                runOnUiThread(() -> playButton.setAlpha(1f));
                                 previewDecoder.playWem(result, new PreviewDecoder.PlaybackCallback() {
                                     @Override
                                     public void onPlaybackStarted() {
@@ -391,7 +404,7 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onError(String message) {
                                 runOnUiThread(() -> {
-                                    playButton.setText("▶");
+                                    playButton.setAlpha(1f);
                                     Toast.makeText(MainActivity.this, "Lỗi tải nhạc thử: " + message, Toast.LENGTH_SHORT).show();
                                 });
                             }
@@ -417,7 +430,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        view.findViewById(R.id.btnPickerClose).setOnClickListener(v -> dialog.dismiss());
+        view.findViewById(R.id.btnPickerCloseIcon).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
     }
 
@@ -432,7 +445,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_picker, null);
-        ((TextView) view.findViewById(R.id.tvPickerTitle)).setText("Chọn video");
+        ((TextView) view.findViewById(R.id.tvPickerTitle)).setText("KHO VẬT PHẨM // VIDEO");
         EditText search = view.findViewById(R.id.etPickerSearch);
         search.setHint("Tìm video...");
         RecyclerView rv = view.findViewById(R.id.rvPickerList);
@@ -443,6 +456,14 @@ public class MainActivity extends AppCompatActivity {
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
+
+        // Tự tải video từ máy — nút phụ đặt Ở ĐẦU danh sách (dễ thấy nhất),
+        // dùng thẳng ô btnPickerUpload có sẵn trong dialog_picker.xml thay
+        // vì tự tạo View bằng code như bản trước.
+        view.findViewById(R.id.btnPickerUpload).setOnClickListener(v -> {
+            dialog.dismiss();
+            pickVideoUploadLauncher.launch(new String[]{"video/*"});
+        });
 
         VideoGridAdapter adapter = new VideoGridAdapter(videoLibrary,
                 selectedVideoFromLibrary == null ? null : selectedVideoFromLibrary.id,
@@ -473,27 +494,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Nút phụ: tự upload video từ máy thay vì chọn từ thư viện — chèn
-        // thêm 1 dòng trên nút Đóng thay vì tìm cách nhồi vào lưới.
-        TextView btnUpload = new TextView(this);
-        btnUpload.setText("⬆️  Tải video từ máy lên");
-        btnUpload.setTextColor(0xFFa0c8ee);
-        btnUpload.setTypeface(null, android.graphics.Typeface.BOLD);
-        btnUpload.setTextSize(12f);
-        btnUpload.setGravity(android.view.Gravity.CENTER);
-        btnUpload.setBackgroundResource(R.drawable.web_ghost_pill);
-        btnUpload.setPadding(0, 28, 0, 28);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(42, 0, 42, 14);
-        btnUpload.setLayoutParams(lp);
-        btnUpload.setOnClickListener(v -> {
-            dialog.dismiss();
-            pickVideoUploadLauncher.launch(new String[]{"video/*"});
-        });
-        ((LinearLayout) view).addView(btnUpload, ((LinearLayout) view).indexOfChild(view.findViewById(R.id.btnPickerClose)));
-
-        view.findViewById(R.id.btnPickerClose).setOnClickListener(v -> dialog.dismiss());
+        view.findViewById(R.id.btnPickerCloseIcon).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
     }
 
@@ -710,6 +711,20 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_confirm, null);
+        AlertDialog confirmDialog = new AlertDialog.Builder(this).setView(view).create();
+        if (confirmDialog.getWindow() != null) {
+            confirmDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        view.findViewById(R.id.btnConfirmCancel).setOnClickListener(v -> confirmDialog.dismiss());
+        view.findViewById(R.id.btnConfirmOk).setOnClickListener(v -> {
+            confirmDialog.dismiss();
+            performUninstallAll();
+        });
+        confirmDialog.show();
+    }
+
+    private void performUninstallAll() {
         setBusyUi(true, "Đang gỡ mod...");
         log("Bắt đầu gỡ toàn bộ mod...");
 
@@ -868,7 +883,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupPreScopedStorageUi() {
         setDotColor(0xFF80c8f8);
-        tvShizukuStatus.setText("API " + Build.VERSION.SDK_INT);
+        tvShizukuStatus.setText("SYSTEM // API " + Build.VERSION.SDK_INT);
         btnRequestPermission.setVisibility(View.GONE);
         setActionButtonsLocked(false);
     }
@@ -914,19 +929,19 @@ public class MainActivity extends AppCompatActivity {
         switch (state) {
             case BINDER_NOT_AVAILABLE:
                 setDotColor(0xFFe05a5a);
-                tvShizukuStatus.setText("Chưa chạy");
-                btnRequestPermission.setText("Kiểm tra Shizuku");
+                tvShizukuStatus.setText("SHIZUKU // CHƯA CHẠY");
+                tvRequestPermissionLabel.setText("KIỂM TRA SHIZUKU");
                 btnRequestPermission.setVisibility(View.VISIBLE);
                 break;
             case PERMISSION_DENIED:
                 setDotColor(0xFFe9c846);
-                tvShizukuStatus.setText("Chưa cấp quyền");
-                btnRequestPermission.setText("Cấp quyền Shizuku");
+                tvShizukuStatus.setText("SHIZUKU // CHƯA CẤP QUYỀN");
+                tvRequestPermissionLabel.setText("CẤP QUYỀN SHIZUKU");
                 btnRequestPermission.setVisibility(View.VISIBLE);
                 break;
             case GRANTED:
                 setDotColor(0xFF6fcf6f);
-                tvShizukuStatus.setText("Sẵn sàng");
+                tvShizukuStatus.setText("SHIZUKU // SẴN SÀNG");
                 btnRequestPermission.setVisibility(View.GONE);
                 break;
         }

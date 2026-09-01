@@ -12,9 +12,11 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.google.android.material.card.MaterialCardView;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -96,7 +98,11 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
     public void onBindViewHolder(@NonNull VH h, int position) {
         ApiClient.VideoItem item = filtered.get(position);
         h.name.setText(item.name);
-        h.itemView.setSelected(item.id != null && item.id.equals(selectedId));
+        boolean selected = item.id != null && item.id.equals(selectedId);
+        h.badge.setVisibility(selected ? View.VISIBLE : View.GONE);
+        h.card.setStrokeColor(ContextCompat.getColor(h.card.getContext(),
+                selected ? R.color.hud_accent : R.color.hud_border));
+        h.card.setStrokeWidth(selected ? dp(h.card.getContext(), 2) : dp(h.card.getContext(), 1));
         h.itemView.setOnClickListener(v -> listener.onSelect(item));
 
         h.fallback.setVisibility(View.GONE);
@@ -197,15 +203,22 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
         return filtered.size();
     }
 
+    private static int dp(android.content.Context ctx, int value) {
+        return Math.round(value * ctx.getResources().getDisplayMetrics().density);
+    }
+
     static class VH extends RecyclerView.ViewHolder {
-        ImageView thumb;
-        TextView fallback, name;
+        MaterialCardView card;
+        ImageView thumb, fallback;
+        TextView name, badge;
 
         VH(@NonNull View itemView) {
             super(itemView);
+            card = itemView.findViewById(R.id.cardVideoThumb);
             thumb = itemView.findViewById(R.id.ivVideoThumb);
-            fallback = itemView.findViewById(R.id.tvVideoThumbFallback);
+            fallback = itemView.findViewById(R.id.ivVideoThumbFallback);
             name = itemView.findViewById(R.id.tvVideoName);
+            badge = itemView.findViewById(R.id.tvVideoSelectedBadge);
         }
     }
 }

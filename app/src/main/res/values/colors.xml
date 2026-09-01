@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ═══ Nền ═══ -->
+    <color name="hud_bg_page">#0a0e16</color>
+    <color name="hud_surface_2">#101728</color>
+    <color name="hud_surface_1">#0b1120</color>
+    <color name="hud_surface_dim">#cc05070c</color>
+
+    <!-- ═══ Viền ═══ -->
+    <color name="hud_border">#26314a</color>
+    <color name="hud_border_strong">#3c4a6b</color>
+    <color name="hud_border_danger">#7a2f2c</color>
+
+    <!-- ═══ Chữ ═══ -->
+    <color name="hud_text_primary">#eef4ff</color>
+    <color name="hud_text_secondary">#a9b7cc</color>
+    <color name="hud_text_muted">#5c6b85</color>
+
+    <!-- ═══ Accent (xanh dương HUD) ═══ -->
+    <color name="hud_accent">#4f8ef7</color>
+    <color name="hud_accent_bg_muted">#17223c</color>
+    <color name="hud_on_accent">#04122a</color>
+
+    <!-- ═══ Trạng thái ═══ -->
+    <color name="hud_success">#4fbf8f</color>
+    <color name="hud_warning">#e9c846</color>
+    <color name="hud_danger">#e2504a</color>
+    <color name="hud_danger_bg_muted">#241014</color>
+    <color name="hud_on_danger">#2a0505</color>
+
+    <color name="transparent">#00000000</color>
+</resources>

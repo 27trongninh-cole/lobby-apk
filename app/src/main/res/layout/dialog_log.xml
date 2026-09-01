@@ -1,49 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- ═══ Log debug — trình bày dạng terminal HUD, khớp phong cách log
+     triển khai ở màn cài đặt (✓/▸ theo dòng). ═══ -->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#060b12"
-    android:paddingTop="18dp">
+    android:layout_height="520dp"
+    style="@style/Widget.Hud.Panel">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="🧾 Log debug"
-        android:textColor="#a0c8ee"
-        android:textStyle="bold"
-        android:textSize="16sp"
-        android:paddingHorizontal="18dp"
-        android:layout_marginBottom="12dp" />
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingHorizontal="18dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="14dp">
 
         <TextView
-            android:id="@+id/tvLog"
+            style="@style/Text.Hud.LabelAccent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:textSize="11sp"
-            android:textColor="#6a94b8"
-            android:text="" />
-    </ScrollView>
+            android:text="LOG.DEBUG"
+            android:textSize="10.5sp"
+            android:layout_marginBottom="10dp" />
 
-    <TextView
-        android:id="@+id/btnCloseLog"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_margin="14dp"
-        android:background="@drawable/web_ghost_pill"
-        android:text="Đóng"
-        android:textColor="#a0c8ee"
-        android:textStyle="bold"
-        android:textSize="14sp"
-        android:gravity="center"
-        android:clickable="true"
-        android:focusable="true" />
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.Hud.Card"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginBottom="10dp">
 
-</LinearLayout>
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="10dp">
+
+                <TextView
+                    android:id="@+id/tvLog"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textSize="10.5sp"
+                    android:lineSpacingExtra="3dp"
+                    android:textColor="@color/hud_text_secondary"
+                    android:text="" />
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnCloseLog"
+            style="@style/Widget.Hud.Button.Ghost"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="10dp"
+                android:gravity="center"
+                android:text="ĐÓNG"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08"
+                android:textColor="@color/hud_text_secondary"
+                android:textStyle="bold"
+                android:textSize="11sp" />
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

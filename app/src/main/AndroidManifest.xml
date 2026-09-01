@@ -21,7 +21,12 @@
         <activity
             android:name=".MainActivity"
             android:label="Melo Ninstaller"
-            android:exported="true">
+            android:exported="true"
+            android:resizeableActivity="false"
+            android:theme="@style/Theme.Echohall">
+            <!-- resizeableActivity=false + theme dialog nổi (windowIsFloating,
+                 xem styles.xml) — giữ cửa sổ ở đúng tỉ lệ đã phác thảo, tránh bị
+                 kéo giãn khi xoay ngang hoặc vào chế độ chia đôi màn hình. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+<!-- Hình thoi trạng thái Shizuku: shape vuông đặt trong View bị xoay 45°
+     ở layout (android:rotation="45") — cách đơn giản nhất để có hình
+     thoi mà vẫn giữ được setColor() qua GradientDrawable như code cũ. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <solid android:color="#386080" />
 </shape>

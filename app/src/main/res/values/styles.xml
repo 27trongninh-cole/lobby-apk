@@ -1,3 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Echohall" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Theme chính — CỬA SỔ NỔI (floating), không còn full-screen.
+         windowIsFloating=true biến Activity thành 1 panel nổi giữa màn
+         hình, nền sau bị làm mờ tối (windowBackgroundDim). Kích thước cố
+         định bằng windowMinWidthMajor/Minor + hud_dialog_width/height (xem
+         dimens.xml) để layout HUD giữ đúng tỉ lệ như bản phác thảo, không
+         bị kéo giãn theo từng máy.
+         ═══════════════════════════════════════════════════════════════ -->
+    <style name="Theme.Echohall" parent="Theme.MaterialComponents.DayNight.Dialog.NoActionBar">
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.72</item>
+        <item name="android:windowMinWidthMajor">92%</item>
+        <item name="android:windowMinWidthMinor">92%</item>
+        <item name="android:colorBackground">@color/hud_bg_page</item>
+        <item name="android:textColorPrimary">@color/hud_text_primary</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="colorAccent">@color/hud_accent</item>
+    </style>
+
+    <!-- ═══ Góc vát kim cương (cornerFamily="cut") — dùng cho MOI khung
+         card/panel/nút để khớp clip-path polygon trong bản phác thảo HUD.
+         2 cỡ: Large cho khung lớn (panel chính, dialog), Small cho card/ô
+         nhỏ (slot chọn nhạc-video, hàng list, nút). ═══ -->
+    <style name="ShapeAppearance.Hud.Cut.Large" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">cut</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Hud.Cut.Small" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerFamily">cut</item>
+        <item name="cornerSize">9dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Hud.Cut.Tiny" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerFamily">cut</item>
+        <item name="cornerSize">6dp</item>
+    </style>
+
+    <!-- ═══ Panel gốc — khung ngoài cùng của mỗi màn hình (nền surface_2,
+         viền sáng, góc vát lớn). Dùng làm root container thay cho
+         background phẳng #060b12 kiểu cũ. ═══ -->
+    <style name="Widget.Hud.Panel" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/hud_surface_2</item>
+        <item name="strokeColor">@color/hud_border_strong</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardCornerRadius">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Hud.Cut.Large</item>
+    </style>
+
+    <!-- ═══ Card/slot nhỏ bên trong panel (chọn nhạc, chọn video, hàng list,
+         ô lưới video...). ═══ -->
+    <style name="Widget.Hud.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/hud_surface_1</item>
+        <item name="strokeColor">@color/hud_border</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardCornerRadius">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Hud.Cut.Small</item>
+        <item name="rippleColor">@color/hud_accent_bg_muted</item>
+    </style>
+
+    <!-- ═══ Nút chính "KÍCH HOẠT" — nền accent đặc, chữ tối trên nền sáng. ═══ -->
+    <style name="Widget.Hud.Button.Primary" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/hud_accent</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardCornerRadius">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Hud.Cut.Small</item>
+        <item name="rippleColor">@color/hud_on_accent</item>
+    </style>
+
+    <!-- ═══ Nút phụ dạng ghost — chỉ viền, nền trong suốt. ═══ -->
+    <style name="Widget.Hud.Button.Ghost" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/transparent</item>
+        <item name="strokeColor">@color/hud_border_strong</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardCornerRadius">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Hud.Cut.Small</item>
+        <item name="rippleColor">@color/hud_accent_bg_muted</item>
+    </style>
+
+    <!-- ═══ Nút nguy hiểm (Gỡ Mod / Xác nhận gỡ). ═══ -->
+    <style name="Widget.Hud.Button.Danger" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/hud_danger</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardCornerRadius">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Hud.Cut.Small</item>
+        <item name="rippleColor">@color/hud_on_danger</item>
+    </style>
+
+    <!-- ═══ Nhãn hệ thống kiểu "SHIZUKU // READY" — mono, letter-spacing rộng. ═══ -->
+    <style name="Text.Hud.Label">
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:letterSpacing">0.08</item>
+        <item name="android:textColor">@color/hud_text_muted</item>
+    </style>
+
+    <style name="Text.Hud.LabelAccent" parent="Text.Hud.Label">
+        <item name="android:textColor">@color/hud_accent</item>
+    </style>
+
 </resources>
