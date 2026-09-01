@@ -20,21 +20,56 @@ import java.util.regex.Pattern;
 
 public class WemListAdapter extends RecyclerView.Adapter<WemListAdapter.VH> {
 
+    /** Số bài nhạc hiện trên 1 trang — khớp với chiều cao cố định 520dp của dialog_picker. */
+    public static final int PAGE_SIZE = 6;
+
     public interface Listener {
         void onSelect(ApiClient.WemItem item);
         void onPlayPreview(ApiClient.WemItem item, ImageView playButton);
     }
 
+    /** Báo cho MainActivity biết trang hiện tại / tổng số trang đã đổi, để cập nhật UI điều hướng. */
+    public interface PageListener {
+        void onPageInfoChanged(int currentPage, int totalPages);
+    }
+
     private final List<ApiClient.WemItem> all;
     private List<ApiClient.WemItem> filtered;
     private final Listener listener;
+    private PageListener pageListener;
     private String selectedId;
+    private int currentPage = 0;
 
     public WemListAdapter(List<ApiClient.WemItem> items, String selectedId, Listener listener) {
         this.all = new ArrayList<>(items);
         this.filtered = new ArrayList<>(items);
         this.selectedId = selectedId;
         this.listener = listener;
+    }
+
+    public void setPageListener(PageListener l) {
+        this.pageListener = l;
+        notifyPageInfo();
+    }
+
+    private void notifyPageInfo() {
+        if (pageListener != null) pageListener.onPageInfoChanged(currentPage, getTotalPages());
+    }
+
+    public int getCurrentPage() {
+        return currentPage;
+    }
+
+    public int getTotalPages() {
+        return Math.max(1, (int) Math.ceil(filtered.size() / (double) PAGE_SIZE));
+    }
+
+    public void setPage(int page) {
+        int clamped = Math.max(0, Math.min(page, getTotalPages() - 1));
+        if (clamped == currentPage) return;
+        currentPage = clamped;
+        notifyDataSetChanged();
+        notifyPageInfo();
     }
 
     public void setSelectedId(String id) {
@@ -56,7 +91,9 @@ public class WemListAdapter extends RecyclerView.Adapter<WemListAdapter.VH> {
         for (ApiClient.WemItem w : all) {
             if (q.isEmpty() || normalize(w.name).contains(q)) filtered.add(w);
         }
+        currentPage = 0;
         notifyDataSetChanged();
+        notifyPageInfo();
     }
 
     public boolean isEmpty() {
@@ -72,7 +109,7 @@ public class WemListAdapter extends RecyclerView.Adapter<WemListAdapter.VH> {
 
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
-        ApiClient.WemItem item = filtered.get(position);
+        ApiClient.WemItem item = filtered.get(currentPage * PAGE_SIZE + position);
         h.name.setText(item.name);
         h.duration.setText(formatDuration(item.durationMs == null ? 0 : item.durationMs));
 
@@ -91,7 +128,8 @@ public class WemListAdapter extends RecyclerView.Adapter<WemListAdapter.VH> {
 
     @Override
     public int getItemCount() {
-        return filtered.size();
+        int start = currentPage * PAGE_SIZE;
+        return Math.max(0, Math.min(PAGE_SIZE, filtered.size() - start));
     }
 
     private static String formatDuration(long ms) {

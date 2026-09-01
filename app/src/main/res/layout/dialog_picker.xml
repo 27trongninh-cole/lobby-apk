@@ -174,5 +174,47 @@
             android:textSize="12sp"
             android:visibility="gone" />
 
+        <!-- ═══ Điều hướng trang — thay cho cuộn dài vô tận, khớp bố cục
+             cố định của dialog (không có scroll dài gây rối mắt). ═══ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+
+            <ImageView
+                android:id="@+id/btnPagePrev"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:padding="6dp"
+                android:src="@drawable/ic_chevron_left"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+            <TextView
+                android:id="@+id/tvPageIndicator"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.06"
+                android:textColor="@color/hud_text_muted"
+                android:textSize="10sp"
+                android:text="TRANG 1/1" />
+
+            <ImageView
+                android:id="@+id/btnPageNext"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:padding="6dp"
+                android:src="@drawable/ic_chevron_right"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
+
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

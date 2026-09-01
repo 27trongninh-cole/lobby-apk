@@ -34,8 +34,15 @@ import java.util.regex.Pattern;
 
 public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> {
 
+    /** 4 hàng x 2 cột = 8 video/trang — khớp chiều cao cố định 520dp của dialog_picker. */
+    public static final int PAGE_SIZE = 8;
+
     public interface Listener {
         void onSelect(ApiClient.VideoItem item);
+    }
+
+    public interface PageListener {
+        void onPageInfoChanged(int currentPage, int totalPages);
     }
 
     // Cache khung hình đầu đã trích xuất trong bộ nhớ (key = video_url) để
@@ -53,13 +60,40 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
     private final List<ApiClient.VideoItem> all;
     private List<ApiClient.VideoItem> filtered;
     private final Listener listener;
+    private PageListener pageListener;
     private String selectedId;
+    private int currentPage = 0;
 
     public VideoGridAdapter(List<ApiClient.VideoItem> items, String selectedId, Listener listener) {
         this.all = new ArrayList<>(items);
         this.filtered = new ArrayList<>(items);
         this.selectedId = selectedId;
         this.listener = listener;
+    }
+
+    public void setPageListener(PageListener l) {
+        this.pageListener = l;
+        notifyPageInfo();
+    }
+
+    private void notifyPageInfo() {
+        if (pageListener != null) pageListener.onPageInfoChanged(currentPage, getTotalPages());
+    }
+
+    public int getCurrentPage() {
+        return currentPage;
+    }
+
+    public int getTotalPages() {
+        return Math.max(1, (int) Math.ceil(filtered.size() / (double) PAGE_SIZE));
+    }
+
+    public void setPage(int page) {
+        int clamped = Math.max(0, Math.min(page, getTotalPages() - 1));
+        if (clamped == currentPage) return;
+        currentPage = clamped;
+        notifyDataSetChanged();
+        notifyPageInfo();
     }
 
     public void setSelectedId(String id) {
@@ -80,7 +114,9 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
         for (ApiClient.VideoItem v : all) {
             if (q.isEmpty() || normalize(v.name).contains(q)) filtered.add(v);
         }
+        currentPage = 0;
         notifyDataSetChanged();
+        notifyPageInfo();
     }
 
     public boolean isEmpty() {
@@ -96,7 +132,7 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
 
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
-        ApiClient.VideoItem item = filtered.get(position);
+        ApiClient.VideoItem item = filtered.get(currentPage * PAGE_SIZE + position);
         h.name.setText(item.name);
         boolean selected = item.id != null && item.id.equals(selectedId);
         h.badge.setVisibility(selected ? View.VISIBLE : View.GONE);
@@ -222,7 +258,8 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
 
     @Override
     public int getItemCount() {
-        return filtered.size();
+        int start = currentPage * PAGE_SIZE;
+        return Math.max(0, Math.min(PAGE_SIZE, filtered.size() - start));
     }
 
     private static int dp(android.content.Context ctx, int value) {

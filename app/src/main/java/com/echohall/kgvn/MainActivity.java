@@ -134,6 +134,11 @@ public class MainActivity extends AppCompatActivity {
     private View btnReinstallLast;
     private View btnUninstallAll;
 
+    private View loadingOverlay;
+    private ProgressBar loadingSpinner;
+    private ImageView loadingErrorIcon;
+    private TextView tvLoadingLabel;
+
     private StringBuilder logBuffer = new StringBuilder();
 
     private ShizukuPermissionHelper shizukuHelper;
@@ -197,6 +202,10 @@ public class MainActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressBar);
         tvProgressLabel = findViewById(R.id.tvProgressLabel);
         btnInstall = findViewById(R.id.btnInstall);
+        loadingOverlay = findViewById(R.id.loadingOverlay);
+        loadingSpinner = findViewById(R.id.loadingSpinner);
+        loadingErrorIcon = findViewById(R.id.loadingErrorIcon);
+        tvLoadingLabel = findViewById(R.id.tvLoadingLabel);
         btnReinstallLast = findViewById(R.id.btnReinstallLast);
         btnUninstallAll = findViewById(R.id.btnUninstallAll);
 
@@ -318,28 +327,49 @@ public class MainActivity extends AppCompatActivity {
     private boolean wemLoading = false;
     private boolean videoLoading = false;
 
+    private static final int MAX_AUTO_RETRIES = 3;
+    // Cách nhau 5s — đủ để phủ qua thời gian "cold start" của server Render
+    // free tier (sleep sau ~15 phút không traffic, có thể mất 20-30s để
+    // tỉnh lại ở request đầu tiên).
+    private static final long AUTO_RETRY_DELAY_MS = 5000;
+    private int wemRetryCount = 0;
+    private int videoRetryCount = 0;
+    private final Handler retryHandler = new Handler(Looper.getMainLooper());
+
     private void loadLibraries() {
         wemLoading = true;
         videoLoading = true;
         tvSelectedWem.setText("Đang tải...");
         tvSelectedVideo.setText("Đang tải...");
         log("Đang tải thư viện nhạc/video từ server...");
+        showLoadingOverlay(true, "ĐANG TẢI THƯ VIỆN...");
 
         apiClient.fetchWemList(new ApiClient.Callback<List<ApiClient.WemItem>>() {
             @Override
             public void onSuccess(List<ApiClient.WemItem> result) {
                 wemLibrary = result;
                 wemLoading = false;
+                wemRetryCount = 0;
                 if (selectedWem == null) tvSelectedWem.setText("Chưa chọn");
                 log("✓ Tải xong " + result.size() + " bài nhạc.");
+                checkLibrariesLoadedDone();
             }
 
             @Override
             public void onError(String message) {
                 wemLoading = false;
-                if (selectedWem == null) tvSelectedWem.setText("Lỗi tải — bấm để thử lại");
                 log("✗ Lỗi tải danh sách nhạc: " + message);
-                Toast.makeText(MainActivity.this, "Lỗi tải danh sách nhạc: " + message, Toast.LENGTH_LONG).show();
+                if (wemRetryCount < MAX_AUTO_RETRIES) {
+                    wemRetryCount++;
+                    log("… tự thử lại tải nhạc (lần " + wemRetryCount + "/" + MAX_AUTO_RETRIES + ")");
+                    retryHandler.postDelayed(() -> {
+                        wemLoading = true;
+                        apiClient.fetchWemList(this);
+                    }, AUTO_RETRY_DELAY_MS);
+                } else {
+                    if (selectedWem == null) tvSelectedWem.setText("Lỗi tải — bấm để thử lại");
+                    checkLibrariesLoadedDone();
+                }
             }
         });
 
@@ -348,17 +378,67 @@ public class MainActivity extends AppCompatActivity {
             public void onSuccess(List<ApiClient.VideoItem> result) {
                 videoLibrary = result;
                 videoLoading = false;
+                videoRetryCount = 0;
                 if (selectedVideoFromLibrary == null && selectedVideoUploadUri == null) tvSelectedVideo.setText("Chưa chọn");
                 log("✓ Tải xong " + result.size() + " video.");
+                checkLibrariesLoadedDone();
             }
 
             @Override
             public void onError(String message) {
                 videoLoading = false;
-                if (selectedVideoFromLibrary == null && selectedVideoUploadUri == null) tvSelectedVideo.setText("Lỗi tải — bấm để thử lại");
                 log("✗ Lỗi tải danh sách video: " + message);
-                Toast.makeText(MainActivity.this, "Lỗi tải danh sách video: " + message, Toast.LENGTH_LONG).show();
+                if (videoRetryCount < MAX_AUTO_RETRIES) {
+                    videoRetryCount++;
+                    log("… tự thử lại tải video (lần " + videoRetryCount + "/" + MAX_AUTO_RETRIES + ")");
+                    retryHandler.postDelayed(() -> {
+                        videoLoading = true;
+                        apiClient.fetchVideoList(this);
+                    }, AUTO_RETRY_DELAY_MS);
+                } else {
+                    if (selectedVideoFromLibrary == null && selectedVideoUploadUri == null) tvSelectedVideo.setText("Lỗi tải — bấm để thử lại");
+                    checkLibrariesLoadedDone();
+                }
             }
+        });
+    }
+
+    /**
+     * Chỉ ẩn overlay loading khi CẢ HAI đã xong (thành công hoặc đã hết
+     * lượt tự thử lại) — tránh trường hợp 1 cái xong trước làm overlay tắt
+     * sớm trong khi cái còn lại vẫn đang lỗi.
+     */
+    private void checkLibrariesLoadedDone() {
+        boolean wemDone = wemLibrary != null || wemRetryCount >= MAX_AUTO_RETRIES;
+        boolean videoDone = videoLibrary != null || videoRetryCount >= MAX_AUTO_RETRIES;
+        if (!wemDone || !videoDone) return;
+
+        if (wemLibrary != null && videoLibrary != null) {
+            showLoadingOverlay(false, null);
+        } else {
+            // Hết lượt tự thử lại mà vẫn lỗi — chuyển overlay sang trạng
+            // thái "bấm để thử lại" thay vì cứ quay vòng vô tận.
+            showLoadingRetryState();
+        }
+    }
+
+    private void showLoadingOverlay(boolean show, String label) {
+        loadingOverlay.setVisibility(show ? View.VISIBLE : View.GONE);
+        loadingOverlay.setOnClickListener(null);
+        loadingSpinner.setVisibility(View.VISIBLE);
+        loadingErrorIcon.setVisibility(View.GONE);
+        if (label != null) tvLoadingLabel.setText(label);
+    }
+
+    private void showLoadingRetryState() {
+        loadingOverlay.setVisibility(View.VISIBLE);
+        loadingSpinner.setVisibility(View.GONE);
+        loadingErrorIcon.setVisibility(View.VISIBLE);
+        tvLoadingLabel.setText("KHÔNG TẢI ĐƯỢC THƯ VIỆN — CHẠM ĐỂ THỬ LẠI");
+        loadingOverlay.setOnClickListener(v -> {
+            wemRetryCount = 0;
+            videoRetryCount = 0;
+            loadLibraries();
         });
     }
 
@@ -439,6 +519,19 @@ public class MainActivity extends AppCompatActivity {
                 });
         rv.setAdapter(adapter);
 
+        ImageView btnPagePrev = view.findViewById(R.id.btnPagePrev);
+        ImageView btnPageNext = view.findViewById(R.id.btnPageNext);
+        TextView tvPageIndicator = view.findViewById(R.id.tvPageIndicator);
+        adapter.setPageListener((page, totalPages) -> {
+            tvPageIndicator.setText("TRANG " + (page + 1) + "/" + totalPages);
+            btnPagePrev.setEnabled(page > 0);
+            btnPagePrev.setAlpha(page > 0 ? 1f : 0.3f);
+            btnPageNext.setEnabled(page < totalPages - 1);
+            btnPageNext.setAlpha(page < totalPages - 1 ? 1f : 0.3f);
+        });
+        btnPagePrev.setOnClickListener(v -> adapter.setPage(adapter.getCurrentPage() - 1));
+        btnPageNext.setOnClickListener(v -> adapter.setPage(adapter.getCurrentPage() + 1));
+
         search.addTextChangedListener(new android.text.TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int a, int b, int c) {
@@ -502,6 +595,19 @@ public class MainActivity extends AppCompatActivity {
                     dialog.dismiss();
                 });
         rv.setAdapter(adapter);
+
+        ImageView btnPagePrevV = view.findViewById(R.id.btnPagePrev);
+        ImageView btnPageNextV = view.findViewById(R.id.btnPageNext);
+        TextView tvPageIndicatorV = view.findViewById(R.id.tvPageIndicator);
+        adapter.setPageListener((page, totalPages) -> {
+            tvPageIndicatorV.setText("TRANG " + (page + 1) + "/" + totalPages);
+            btnPagePrevV.setEnabled(page > 0);
+            btnPagePrevV.setAlpha(page > 0 ? 1f : 0.3f);
+            btnPageNextV.setEnabled(page < totalPages - 1);
+            btnPageNextV.setAlpha(page < totalPages - 1 ? 1f : 0.3f);
+        });
+        btnPagePrevV.setOnClickListener(v -> adapter.setPage(adapter.getCurrentPage() - 1));
+        btnPageNextV.setOnClickListener(v -> adapter.setPage(adapter.getCurrentPage() + 1));
 
         search.addTextChangedListener(new android.text.TextWatcher() {
             @Override
