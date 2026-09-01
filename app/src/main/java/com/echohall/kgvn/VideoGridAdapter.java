@@ -158,7 +158,7 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
         h.fallback.setVisibility(View.GONE);
         h.thumb.setVisibility(View.VISIBLE);
 
-        if (item.thumbnailUrl != null && !item.thumbnailUrl.isEmpty()) {
+        if (item.thumbnailUrl != null && !item.thumbnailUrl.isEmpty() && !"null".equals(item.thumbnailUrl)) {
             // Có sẵn ảnh thumbnail admin upload — dùng luôn, không cần trích
             // khung hình từ video (nhanh hơn nhiều). TRƯỚC ĐÂY không có
             // .listener(...) nên nếu Glide tải lỗi (link hỏng, hết hạn...)

@@ -182,6 +182,7 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         VideoGridAdapter.logger = this::log;
+        lockActivityWindowHeight();
 
         tvShizukuDotView = findViewById(R.id.tvShizukuDotView);
         tvShizukuStatus = findViewById(R.id.tvShizukuStatus);
@@ -554,6 +555,11 @@ public class MainActivity extends AppCompatActivity {
             btnPagePrev.setAlpha(page > 0 ? 1f : 0.3f);
             btnPageNext.setEnabled(page < totalPages - 1);
             btnPageNext.setAlpha(page < totalPages - 1 ? 1f : 0.3f);
+            // Tái khoá kích thước MỖI LẦN đổi trang — trang cuối có ít item
+            // hơn khiến RecyclerView "muốn" báo lại kích thước tự nhiên nhỏ
+            // hơn cho window; đặt lại ngay sau notifyDataSetChanged() đảm bảo
+            // cửa sổ không bao giờ co theo, dù chỉ 1 khung hình.
+            lockDialogHeight(dialog, 560);
         });
         btnPagePrev.setOnClickListener(v -> adapter.setPage(adapter.getCurrentPage() - 1));
         btnPageNext.setOnClickListener(v -> adapter.setPage(adapter.getCurrentPage() + 1));
@@ -577,7 +583,7 @@ public class MainActivity extends AppCompatActivity {
 
         view.findViewById(R.id.btnPickerCloseIcon).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
-        lockDialogHeight(dialog, 520);
+        lockDialogHeight(dialog, 560);
     }
 
     private void openVideoPickerDialog() {
@@ -632,6 +638,7 @@ public class MainActivity extends AppCompatActivity {
             btnPagePrevV.setAlpha(page > 0 ? 1f : 0.3f);
             btnPageNextV.setEnabled(page < totalPages - 1);
             btnPageNextV.setAlpha(page < totalPages - 1 ? 1f : 0.3f);
+            lockDialogHeight(dialog, 640);
         });
         btnPagePrevV.setOnClickListener(v -> adapter.setPage(adapter.getCurrentPage() - 1));
         btnPageNextV.setOnClickListener(v -> adapter.setPage(adapter.getCurrentPage() + 1));
@@ -655,7 +662,7 @@ public class MainActivity extends AppCompatActivity {
 
         view.findViewById(R.id.btnPickerCloseIcon).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
-        lockDialogHeight(dialog, 520);
+        lockDialogHeight(dialog, 640);
     }
 
     /**
@@ -666,6 +673,24 @@ public class MainActivity extends AppCompatActivity {
      * WindowManager.LayoutParams để cửa sổ luôn giữ đúng 1 kích thước bất
      * kể trang nào đang hiển thị.
      */
+    /**
+     * Khoá chiều cao cửa sổ MÀN HÌNH CHÍNH — tương tự lockDialogHeight bên
+     * dưới, nhưng áp cho chính cửa sổ Activity (Theme.Echohall cũng là
+     * windowIsFloating=true nên hành xử y hệt 1 dialog nổi). Không khoá thì
+     * mỗi lần thanh playback nhạc (layoutPlaybackBar) hiện/ẩn theo trạng thái
+     * chọn nhạc, panel chính bị đo lại theo wrap_content và co giãn theo,
+     * nhìn giật cục. 640dp đủ chỗ cho MỌI trạng thái (kể cả khi mọi khối tuỳ
+     * chọn — nút cấp quyền, thanh playback, danh sách cài gần đây, progress
+     * — đều đang hiện cùng lúc); trạng thái ít nội dung hơn chỉ để trống
+     * khoảng dưới thay vì co cửa sổ lại.
+     */
+    private void lockActivityWindowHeight() {
+        int px = Math.round(640 * getResources().getDisplayMetrics().density);
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.height = px;
+        getWindow().setAttributes(lp);
+    }
+
     private void lockDialogHeight(AlertDialog dialog, int heightDp) {
         if (dialog.getWindow() == null) return;
         int px = Math.round(heightDp * getResources().getDisplayMetrics().density);

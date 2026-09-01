@@ -114,8 +114,14 @@ public class ApiClient {
                     VideoItem v = new VideoItem();
                     v.id = o.optString("id");
                     v.name = o.optString("name");
-                    v.videoUrl = o.optString("video_url", null);
-                    v.thumbnailUrl = o.optString("thumbnail_url", null);
+                    // optString() của org.json trả về CHUỖI CHỮ "null" (không
+                    // phải Java null) khi field tồn tại nhưng có giá trị JSON
+                    // null — nếu không lọc lại, "null" bị coi là 1 URL thật,
+                    // Glide/MediaMetadataRetriever báo MalformedURLException
+                    // "no protocol: null". Dùng optNullableString() bên dưới
+                    // để trả đúng Java null trong trường hợp đó.
+                    v.videoUrl = optNullableString(o, "video_url");
+                    v.thumbnailUrl = optNullableString(o, "thumbnail_url");
                     out.add(v);
                 }
                 postSuccess(cb, out);
@@ -210,6 +216,18 @@ public class ApiClient {
         } finally {
             conn.disconnect();
         }
+    }
+
+    /**
+     * optString() của org.json trả về chuỗi CHỮ "null" thay vì Java null khi
+     * field tồn tại với giá trị JSON null (khác với field hoàn toàn không có
+     * — trường hợp đó optString mới trả về đúng null/fallback). Hàm này lọc
+     * lại cả 2 trường hợp về đúng 1 kết quả: Java null.
+     */
+    private static String optNullableString(JSONObject o, String key) {
+        if (!o.has(key) || o.isNull(key)) return null;
+        String v = o.optString(key, null);
+        return (v == null || "null".equals(v) || v.isEmpty()) ? null : v;
     }
 
     private static byte[] readAllBytes(InputStream is) throws IOException {
