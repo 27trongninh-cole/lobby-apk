@@ -628,11 +628,16 @@ public class MainActivity extends AppCompatActivity {
                     updateInstallButtonEnabled();
                     refreshPreview();
                 });
-            } catch (Exception e) {
+            } catch (Throwable e) {
+                // Throwable, KHÔNG chỉ Exception: UnsatisfiedLinkError (thiếu
+                // libmwem.so / thiết bị không phải arm64) là Error, không
+                // phải Exception — nếu chỉ bắt Exception thì app crash thẳng
+                // thay vì báo lỗi gọn trong log.
+                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                 runOnUiThread(() -> {
                     setBusyUi(false, null);
-                    log("✗ Convert thất bại: " + e.getMessage());
-                    Toast.makeText(MainActivity.this, "Convert thất bại: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    log("✗ Convert thất bại: " + msg);
+                    Toast.makeText(MainActivity.this, "Convert thất bại: " + msg, Toast.LENGTH_LONG).show();
                 });
             }
         }).start();
