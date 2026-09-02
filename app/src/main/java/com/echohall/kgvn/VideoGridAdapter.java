@@ -146,7 +146,24 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
 
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
-        ApiClient.VideoItem item = filtered.get(currentPage * PAGE_SIZE + position);
+        int index = currentPage * PAGE_SIZE + position;
+
+        // Trang cuối có thể thiếu item (VD: 8 video / trang 6 -> trang 2 chỉ
+        // có 2 item thật). TRƯỚC ĐÂY getItemCount() chỉ trả đúng số item thật
+        // của trang đó, khiến RecyclerView (và cả cửa sổ dialog bọc ngoài)
+        // co lại theo — dù đã khoá kích thước cửa sổ bằng code vẫn không ăn
+        // chắc 100%. Giờ LUÔN render đủ PAGE_SIZE ô cho mọi trang; ô dư ra ở
+        // trang cuối set INVISIBLE (vẫn chiếm chỗ trong layout, chỉ không vẽ
+        // gì) — nội dung lưới luôn "đầy" y hệt nhau ở mọi trang, không còn gì
+        // để co nữa, không cần phụ thuộc vào việc khoá window có ăn hay không.
+        if (index >= filtered.size()) {
+            h.itemView.setVisibility(View.INVISIBLE);
+            h.itemView.setOnClickListener(null);
+            return;
+        }
+        h.itemView.setVisibility(View.VISIBLE);
+
+        ApiClient.VideoItem item = filtered.get(index);
         h.name.setText(item.name);
         boolean selected = item.id != null && item.id.equals(selectedId);
         h.badge.setVisibility(selected ? View.VISIBLE : View.GONE);
@@ -285,8 +302,12 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
 
     @Override
     public int getItemCount() {
-        int start = currentPage * PAGE_SIZE;
-        return Math.max(0, Math.min(PAGE_SIZE, filtered.size() - start));
+        // LUÔN trả về PAGE_SIZE (không phải số item thật của trang hiện tại)
+        // — xem giải thích trong onBindViewHolder. Riêng lúc danh sách gốc
+        // trống hoàn toàn (0 kết quả tìm kiếm) thì trả 0 thật, vì lúc đó
+        // tvPickerEmpty đã hiện thay cho RecyclerView rồi.
+        if (filtered.isEmpty()) return 0;
+        return PAGE_SIZE;
     }
 
     private static int dp(android.content.Context ctx, int value) {

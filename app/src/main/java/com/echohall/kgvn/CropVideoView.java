@@ -61,7 +61,19 @@ public class CropVideoView extends TextureView implements TextureView.SurfaceTex
 
     public void setVideoURI(Uri uri) {
         this.pendingUri = uri;
-        if (surface != null) openVideo();
+        if (surface != null) {
+            // QUAN TRỌNG: KHÔNG gọi openVideo() ngay tại đây. MainActivity
+            // luôn gọi theo thứ tự setVideoURI() -> setOnPreparedListener()
+            // -> setOnErrorListener() trong cùng 1 khối lệnh. Nếu surface đã
+            // có sẵn từ lần phát trước (từ lần chọn video thứ 2 trở đi),
+            // gọi openVideo() ngay tại đây sẽ tạo MediaPlayer và gán listener
+            // TRƯỚC KHI 2 dòng setOnPreparedListener/setOnErrorListener kịp
+            // chạy — MediaPlayer chuẩn bị xong nhưng gọi vào listener rỗng
+            // (null), không có gì gọi start(), video đứng im không hiện gì.
+            // post() đẩy việc mở video sang sau khi toàn bộ khối lệnh đồng bộ
+            // hiện tại (bao gồm 2 dòng set listener kia) đã chạy xong.
+            post(this::openVideo);
+        }
     }
 
     public void setOnPreparedListener(MediaPlayer.OnPreparedListener listener) {

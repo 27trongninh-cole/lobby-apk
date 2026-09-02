@@ -109,7 +109,20 @@ public class WemListAdapter extends RecyclerView.Adapter<WemListAdapter.VH> {
 
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
-        ApiClient.WemItem item = filtered.get(currentPage * PAGE_SIZE + position);
+        int index = currentPage * PAGE_SIZE + position;
+
+        // Cùng lý do như VideoGridAdapter — luôn render đủ PAGE_SIZE hàng,
+        // trang thiếu item thì ẩn (INVISIBLE) hàng dư thay vì rút gọn danh
+        // sách, để nội dung luôn "đầy" như nhau ở mọi trang.
+        if (index >= filtered.size()) {
+            h.itemView.setVisibility(View.INVISIBLE);
+            h.itemView.setOnClickListener(null);
+            h.playBtn.setOnClickListener(null);
+            return;
+        }
+        h.itemView.setVisibility(View.VISIBLE);
+
+        ApiClient.WemItem item = filtered.get(index);
         h.name.setText(item.name);
         h.duration.setText(formatDuration(item.durationMs == null ? 0 : item.durationMs));
 
@@ -128,8 +141,8 @@ public class WemListAdapter extends RecyclerView.Adapter<WemListAdapter.VH> {
 
     @Override
     public int getItemCount() {
-        int start = currentPage * PAGE_SIZE;
-        return Math.max(0, Math.min(PAGE_SIZE, filtered.size() - start));
+        if (filtered.isEmpty()) return 0;
+        return PAGE_SIZE;
     }
 
     private static String formatDuration(long ms) {
