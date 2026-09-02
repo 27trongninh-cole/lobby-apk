@@ -1,5 +1,6 @@
 package com.echohall.kgvn;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.media.MediaMetadataRetriever;
 import android.os.Handler;
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.google.android.material.card.MaterialCardView;
 
+import java.io.File;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -236,7 +238,30 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
             inFlight.add(videoUrl);
         }
 
+        Context appContext = h.thumb.getContext().getApplicationContext();
+
         THUMB_EXECUTOR.execute(() -> {
+            // Cache ĐĨA — kiểm tra TRƯỚC KHI đụng tới mạng. Bền qua việc tắt
+            // app/khởi động lại máy (khác với FRAME_CACHE trong RAM chỉ sống
+            // trong 1 phiên chạy app). Lưu bản đã resize nhỏ + nén JPEG, KHÔNG
+            // lưu nguyên khung hình gốc (thường full-res từ video, nặng hơn
+            // nhiều so với kích thước ô lưới ~150dp thực tế cần hiển thị).
+            Bitmap diskHit = readDiskCache(appContext, videoUrl);
+            if (diskHit != null) {
+                synchronized (inFlight) {
+                    inFlight.remove(videoUrl);
+                }
+                FRAME_CACHE.put(videoUrl, diskHit);
+                mainHandler.post(() -> {
+                    if (videoUrl.equals(h.thumb.getTag())) {
+                        h.thumb.setVisibility(View.VISIBLE);
+                        h.fallback.setVisibility(View.GONE);
+                        h.thumb.setImageBitmap(diskHit);
+                    }
+                });
+                return;
+            }
+
             Future<Bitmap> future = WATCHDOG_EXECUTOR.submit((Callable<Bitmap>) () -> {
                 MediaMetadataRetriever retriever = new MediaMetadataRetriever();
                 try {
@@ -279,7 +304,13 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
                 }
             }
 
-            Bitmap finalFrame = frame;
+            // Resize nhỏ lại + lưu vào cache đĩa TRƯỚC KHI đưa lên UI — dùng
+            // đúng bản đã resize cho cả hiển thị lẫn FRAME_CACHE trong RAM,
+            // đỡ tốn bộ nhớ hơn nhiều so với giữ bản full-res gốc.
+            Bitmap finalFrame = frame != null ? shrinkForThumbnail(frame) : null;
+            if (finalFrame != null) {
+                writeDiskCache(appContext, videoUrl, finalFrame);
+            }
             mainHandler.post(() -> {
                 if (finalFrame != null) {
                     FRAME_CACHE.put(videoUrl, finalFrame);
@@ -298,6 +329,48 @@ public class VideoGridAdapter extends RecyclerView.Adapter<VideoGridAdapter.VH> 
                 }
             });
         });
+    }
+
+    /** Giới hạn cạnh dài nhất còn 320px — dư sức nét cho ô lưới ~150dp x2 mật độ, nhẹ hơn nhiều so với khung hình full-res gốc. */
+    private static final int THUMB_MAX_DIMEN = 320;
+
+    private static Bitmap shrinkForThumbnail(Bitmap src) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        if (Math.max(w, h) <= THUMB_MAX_DIMEN) return src;
+        float scale = THUMB_MAX_DIMEN / (float) Math.max(w, h);
+        int newW = Math.max(1, Math.round(w * scale));
+        int newH = Math.max(1, Math.round(h * scale));
+        Bitmap resized = Bitmap.createScaledBitmap(src, newW, newH, true);
+        if (resized != src) src.recycle();
+        return resized;
+    }
+
+    private static File diskCacheFile(Context ctx, String url) {
+        File dir = new File(ctx.getCacheDir(), "video_thumbs");
+        if (!dir.exists()) dir.mkdirs();
+        // hashCode() đủ dùng cho mục đích đặt tên file cache — không cần
+        // chống va chạm mật mã học, chỉ cần ổn định cho cùng 1 URL.
+        return new File(dir, Integer.toHexString(url.hashCode()) + ".jpg");
+    }
+
+    private static Bitmap readDiskCache(Context ctx, String url) {
+        File f = diskCacheFile(ctx, url);
+        if (!f.exists()) return null;
+        try {
+            return android.graphics.BitmapFactory.decodeFile(f.getAbsolutePath());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static void writeDiskCache(Context ctx, String url, Bitmap thumb) {
+        File f = diskCacheFile(ctx, url);
+        try (java.io.FileOutputStream out = new java.io.FileOutputStream(f)) {
+            thumb.compress(Bitmap.CompressFormat.JPEG, 82, out);
+        } catch (Exception e) {
+            logThumb("Không lưu được cache đĩa cho " + url + ": " + e.getMessage());
+        }
     }
 
     @Override
