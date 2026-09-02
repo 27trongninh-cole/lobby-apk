@@ -150,6 +150,23 @@ public class ApiClient {
     // giống rule server: "Cần chọn videoId từ thư viện hoặc upload file video".
     public void build(String wemId, String videoId, byte[] videoFileBytes, String videoFileName,
                        Callback<BuildResult> cb) {
+        buildInternal(wemId, null, -1, null, videoId, videoFileBytes, videoFileName, cb);
+    }
+
+    // Biến thể dùng khi nhạc là file .wem TỰ TẢI LÊN + convert ngay trên máy
+    // (xem com.echohall.kgvn.w2w.WemConverter) — không có wemId trong thư
+    // viện server, nên gửi thẳng bytes .wem đã convert + duration đo được từ
+    // WAV gốc. Server cần route /api/build hỗ trợ field "wem" + "wemDurationMs"
+    // (xem HUONG-DAN-DEPLOY / server/index.js đã cập nhật cùng đợt này).
+    public void buildWithLocalWem(byte[] wemFileBytes, String wemFileName, int wemDurationMs,
+                                   String videoId, byte[] videoFileBytes, String videoFileName,
+                                   Callback<BuildResult> cb) {
+        buildInternal(null, wemFileBytes, wemDurationMs, wemFileName, videoId, videoFileBytes, videoFileName, cb);
+    }
+
+    private void buildInternal(String wemId, byte[] wemFileBytes, int wemDurationMs, String wemFileName,
+                                String videoId, byte[] videoFileBytes, String videoFileName,
+                                Callback<BuildResult> cb) {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
@@ -163,7 +180,13 @@ public class ApiClient {
                 conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 
                 try (OutputStream os = conn.getOutputStream()) {
-                    writeFormField(os, boundary, "wemId", wemId);
+                    if (wemFileBytes != null) {
+                        writeFormFile(os, boundary, "wem", wemFileName == null ? "upload.wem" : wemFileName, wemFileBytes);
+                        writeFormField(os, boundary, "wemDurationMs", String.valueOf(wemDurationMs));
+                        writeFormField(os, boundary, "wemName", wemFileName == null ? "Nhạc tự tải lên" : wemFileName);
+                    } else {
+                        writeFormField(os, boundary, "wemId", wemId);
+                    }
                     if (videoId != null) {
                         writeFormField(os, boundary, "videoId", videoId);
                     } else if (videoFileBytes != null) {

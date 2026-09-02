@@ -12,6 +12,14 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0.0"
+
+        // libmwem.so (encoder wav/mp3/ogg -> .wem, port từ w2wtest) chỉ build
+        // sẵn cho arm64-v8a — giới hạn app chỉ chạy trên thiết bị arm64 (đa số
+        // máy Android hiện nay). Nếu sau này có thêm .so cho armeabi-v7a thì
+        // thêm vào đây.
+        ndk {
+            abiFilters "arm64-v8a"
+        }
     }
 
     buildTypes {
