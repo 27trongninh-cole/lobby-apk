@@ -2,7 +2,6 @@ package com.echohall.kgvn.license;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.provider.Settings;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -17,12 +16,21 @@ import com.echohall.kgvn.AppConfig;
 
 /**
  * "Device-based Manual License Activation": mỗi thiết bị có 1 Device ID cố
- * định (ANDROID_ID). Người dùng gửi Device ID này cho admin (qua Zalo/Discord
- * ngoài app); admin tự tay thêm 1 dòng vào bảng "device_licenses" trên
- * Supabase (qua dashboard Table Editor — service_role, không qua app).
- * App CHỈ ĐỌC bảng này bằng anon key để kiểm tra device_id của MÌNH có đang
- * active hay không — không có đường ghi/tự kích hoạt nào từ app, nên không
- * ai tự mở khoá được nếu admin chưa duyệt.
+ * định — TỰ SINH 1 lần (UUID random, KHÔNG dùng ANDROID_ID). Người dùng gửi
+ * Device ID này cho admin (qua Zalo/Discord ngoài app); admin tự tay thêm 1
+ * dòng vào bảng "device_licenses" trên Supabase (qua trang /admin —
+ * service_role, không qua app). App CHỈ ĐỌC bảng này bằng anon key để kiểm
+ * tra device_id của MÌNH có đang active hay không — không có đường ghi/tự
+ * kích hoạt nào từ app, nên không ai tự mở khoá được nếu admin chưa duyệt.
+ *
+ * LƯU Ý QUAN TRỌNG — vì sao KHÔNG dùng ANDROID_ID: theo tài liệu Android,
+ * ANDROID_ID đổi khi CHỮ KÝ KÝ APK đổi. App này build qua GitHub Actions,
+ * chưa có keystore cố định commit vào repo -> MỖI LẦN CI build lại là 1 chữ
+ * ký khác -> nếu dùng ANDROID_ID, Device ID sẽ đổi liên tục mỗi lần cập
+ * nhật app (dù không hề gỡ cài đặt), làm vô hiệu license đã duyệt. Dùng UUID
+ * tự sinh + lưu SharedPreferences thay vì ANDROID_ID để tránh hẳn vấn đề
+ * này — chỉ đổi khi gỡ hẳn app hoặc xoá dữ liệu app (đúng như kỳ vọng
+ * "theo thiết bị", không bị ảnh hưởng bởi việc build lại APK).
  *
  * Kích hoạt xong -> cache local vĩnh viễn (không hết hạn, không cần check
  * mạng lại mỗi lần mở app) — đúng yêu cầu "kích hoạt 1 lần dùng vĩnh viễn".
@@ -32,14 +40,24 @@ public final class DeviceLicense {
     private static final String PREFS_NAME = "device_license";
     private static final String KEY_ACTIVATED = "activated";
     private static final String KEY_ACTIVATED_FOR_DEVICE_ID = "activated_for_device_id";
+    private static final String KEY_GENERATED_DEVICE_ID = "generated_device_id";
     private static final int TIMEOUT_MS = 20_000;
 
     private DeviceLicense() {}
 
-    /** ANDROID_ID: ổn định theo (thiết bị + chữ ký app + user profile), đổi khi factory reset hoặc gỡ+cài lại với chữ ký khác. */
+    /**
+     * UUID tự sinh 1 LẦN DUY NHẤT cho máy này, lưu vĩnh viễn trong
+     * SharedPreferences — không phụ thuộc chữ ký ký APK, không đổi khi cập
+     * nhật/build lại app, chỉ đổi khi gỡ cài đặt hẳn hoặc xoá dữ liệu app.
+     */
     public static String getDeviceId(Context ctx) {
-        String id = Settings.Secure.getString(ctx.getContentResolver(), Settings.Secure.ANDROID_ID);
-        return id == null || id.isEmpty() ? "unknown-device" : id;
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String existing = prefs.getString(KEY_GENERATED_DEVICE_ID, null);
+        if (existing != null && !existing.isEmpty()) return existing;
+
+        String fresh = java.util.UUID.randomUUID().toString();
+        prefs.edit().putString(KEY_GENERATED_DEVICE_ID, fresh).apply();
+        return fresh;
     }
 
     /** Đã kích hoạt sẵn trong cache local (đúng device hiện tại) chưa — dùng để bật/khoá UI ngay, không cần chờ mạng. */

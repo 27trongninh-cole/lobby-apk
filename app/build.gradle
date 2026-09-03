@@ -22,13 +22,37 @@ android {
         }
     }
 
+    // Keystore CỐ ĐỊNH, commit thẳng vào repo (app/melo-release.keystore) —
+    // dùng chung cho MỌI lần build (local lẫn CI). Trước đây build debug
+    // dùng debug key TỰ SINH của từng máy/runner -> mỗi lần build lại (kể cả
+    // trên GitHub Actions, runner mới mỗi lần) là 1 chữ ký khác -> (1)
+    // Device ID tự sinh trong DeviceLicense không bị ảnh hưởng (đã đổi sang
+    // UUID riêng, không phụ thuộc chữ ký), NHƯNG (2) cài bản mới đè lên bản
+    // cũ vẫn báo lỗi "xung đột chữ ký / app not installed" vì Android coi 2
+    // chữ ký khác nhau là 2 app khác nhau. Dùng 1 keystore cố định giải quyết
+    // dứt điểm vấn đề (2). Đây KHÔNG phải keystore bí mật/nhạy cảm (app nội
+    // bộ dùng giữa bạn bè, không phát hành CH Play) nên commit thẳng vào
+    // repo là chấp nhận được, không cần GitHub Secrets.
+    signingConfigs {
+        melo {
+            storeFile file("melo-release.keystore")
+            storePassword "melo-ninstaller-2026"
+            keyAlias "melo"
+            keyPassword "melo-ninstaller-2026"
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.melo
         }
         debug {
-            // Build test trước — chưa ký release, dùng debug key mặc định của Android Studio.
+            // Trước đây dùng debug key mặc định (tự sinh, đổi mỗi máy/mỗi
+            // lần CI build) — giờ dùng chung keystore cố định ở trên để cài
+            // đè bản mới lên bản cũ không bị lỗi xung đột chữ ký.
+            signingConfig signingConfigs.melo
         }
     }
 
