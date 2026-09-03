@@ -145,6 +145,11 @@ public class MainActivity extends AppCompatActivity {
     private ImageView loadingErrorIcon;
     private TextView tvLoadingLabel;
 
+    private View installProgressOverlay;
+    private TextView tvInstallProgressLabel;
+    private ProgressBar installOverlayProgressBar;
+    private TextView tvInstallProgressDetail;
+
     private StringBuilder logBuffer = new StringBuilder();
 
     private ShizukuPermissionHelper shizukuHelper;
@@ -158,12 +163,21 @@ public class MainActivity extends AppCompatActivity {
     private Uri selectedVideoUploadUri;
     private String selectedVideoUploadName;
 
-    // Nhạc TỰ TẢI LÊN + convert ngay trên máy (wav/mp3/ogg -> wem, xem
-    // com.echohall.kgvn.w2w.WavToWemPipeline) — loại trừ lẫn nhau với
-    // selectedWem (chọn thư viện HOẶC tự tải, không phải cả 2).
+    // Nhạc TỰ TẢI LÊN — CHỈ lưu Uri file gốc lúc chọn, KHÔNG convert ngay.
+    // Convert wav/mp3/ogg -> wem (com.echohall.kgvn.w2w.WavToWemPipeline)
+    // chỉ chạy khi người dùng bấm "Cài mod" — tránh convert xong rồi người
+    // dùng đổi ý chọn file khác, phí thời gian máy yếu convert (vài phút).
+    // selectedLocalWemFile/DurationMs chỉ được điền TRONG buildLocalAndInstall().
+    private Uri selectedAudioUploadUri;
+    private String selectedAudioUploadName;
     private File selectedLocalWemFile;
     private int selectedLocalWemDurationMs;
-    private String selectedLocalWemDisplayName;
+
+    // Phát ngay file gốc (wav/mp3/ogg) vừa chọn để nghe thử LIỀN, không đợi
+    // convert wem xong (convert có thể mất vài phút trên máy yếu — xem log
+    // thực tế: 240907ms cho 1 file). Dùng MediaPlayer thường vì mp3/wav/ogg
+    // phát trực tiếp được, khác với .wem cần previewDecoder (WebView) riêng.
+    private android.media.MediaPlayer rawAudioPreviewPlayer;
 
     private ShizukuPermissionHelper.State currentShizukuState = ShizukuPermissionHelper.State.BINDER_NOT_AVAILABLE;
     private boolean busy = false;
@@ -227,6 +241,11 @@ public class MainActivity extends AppCompatActivity {
         loadingSpinner = findViewById(R.id.loadingSpinner);
         loadingErrorIcon = findViewById(R.id.loadingErrorIcon);
         tvLoadingLabel = findViewById(R.id.tvLoadingLabel);
+
+        installProgressOverlay = findViewById(R.id.installProgressOverlay);
+        tvInstallProgressLabel = findViewById(R.id.tvInstallProgressLabel);
+        installOverlayProgressBar = findViewById(R.id.installOverlayProgressBar);
+        tvInstallProgressDetail = findViewById(R.id.tvInstallProgressDetail);
         btnReinstallLast = findViewById(R.id.btnReinstallLast);
         btnUninstallAll = findViewById(R.id.btnUninstallAll);
 
@@ -526,6 +545,7 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onSelect(ApiClient.WemItem item) {
                         selectedWem = item;
+                        selectedAudioUploadUri = null;
                         selectedLocalWemFile = null;
                         tvSelectedWem.setText(item.name);
                         updateInstallButtonEnabled();
@@ -606,41 +626,19 @@ public class MainActivity extends AppCompatActivity {
 
     private void onAudioUploadSelected(Uri uri) {
         String displayName = queryDisplayName(uri);
-        setBusyUi(true, "Đang convert " + displayName + " sang .wem...");
-        log("Bắt đầu convert nhạc tự tải lên: " + displayName);
 
-        new Thread(() -> {
-            try {
-                byte[] codebookBytes = readAssetBytes("packed_codebooks_aoTuV_603.bin");
-                File workDir = new File(getCacheDir(), "w2w_work");
-                com.echohall.kgvn.w2w.WavToWemPipeline.Result result =
-                        com.echohall.kgvn.w2w.WavToWemPipeline.convert(
-                                this, uri, displayName, workDir, codebookBytes, this::log);
-
-                runOnUiThread(() -> {
-                    selectedLocalWemFile = result.wemFile;
-                    selectedLocalWemDurationMs = result.durationMs;
-                    selectedLocalWemDisplayName = displayName;
-                    selectedWem = null;
-                    tvSelectedWem.setText("(Máy) " + displayName);
-                    log("✓ Convert xong: " + result.wemFile.getName() + " — " + result.durationMs + " ms.");
-                    setBusyUi(false, null);
-                    updateInstallButtonEnabled();
-                    refreshPreview();
-                });
-            } catch (Throwable e) {
-                // Throwable, KHÔNG chỉ Exception: UnsatisfiedLinkError (thiếu
-                // libmwem.so / thiết bị không phải arm64) là Error, không
-                // phải Exception — nếu chỉ bắt Exception thì app crash thẳng
-                // thay vì báo lỗi gọn trong log.
-                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                runOnUiThread(() -> {
-                    setBusyUi(false, null);
-                    log("✗ Convert thất bại: " + msg);
-                    Toast.makeText(MainActivity.this, "Convert thất bại: " + msg, Toast.LENGTH_LONG).show();
-                });
-            }
-        }).start();
+        // CHỈ lưu lại Uri + nghe thử ngay — KHÔNG convert ở đây. Convert
+        // thật sự (tốn thời gian, có thể vài phút trên máy yếu) chỉ chạy khi
+        // bấm "Cài mod" (xem buildLocalAndInstall), để đổi ý chọn file khác
+        // không lãng phí công convert file cũ.
+        selectedWem = null;
+        selectedLocalWemFile = null;
+        selectedAudioUploadUri = uri;
+        selectedAudioUploadName = displayName;
+        tvSelectedWem.setText("(Máy) " + displayName);
+        log("Đã chọn nhạc tự tải lên: " + displayName + " (sẽ convert khi bấm Cài mod).");
+        startRawAudioPreview(uri);
+        updateInstallButtonEnabled();
     }
 
     private byte[] readAssetBytes(String name) throws Exception {
@@ -781,7 +779,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void refreshPreview() {
         boolean hasVideo = selectedVideoFromLibrary != null || selectedVideoUploadUri != null;
-        boolean hasWem = selectedWem != null || selectedLocalWemFile != null;
+        boolean hasWem = selectedWem != null || selectedAudioUploadUri != null;
         if (!hasVideo && !hasWem) return;
 
         stopPreview();
@@ -813,26 +811,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (hasWem) {
-            if (selectedLocalWemFile != null) {
-                // Nhạc tự tải lên: đã có file .wem ngay trên máy, đọc thẳng
-                // để nghe thử — không cần gọi mạng như bản thư viện.
-                new Thread(() -> {
-                    try {
-                        byte[] wemBytes = readFileBytes(selectedLocalWemFile);
-                        previewDecoder.playWem(wemBytes, new PreviewDecoder.PlaybackCallback() {
-                            @Override
-                            public void onPlaybackStarted() {
-                            }
-
-                            @Override
-                            public void onError(String message) {
-                                runOnUiThread(() -> log("⚠ Nghe thử lỗi: " + message));
-                            }
-                        });
-                    } catch (Exception e) {
-                        runOnUiThread(() -> log("✗ Lỗi đọc file .wem tự tải lên: " + e.getMessage()));
-                    }
-                }).start();
+            if (selectedAudioUploadUri != null) {
+                // Nhạc tự tải lên CHƯA convert (convert chỉ chạy lúc bấm Cài
+                // mod) — nghe thử bằng cách phát thẳng file gốc, y hệt lúc
+                // vừa chọn (startRawAudioPreview), vì stopPreview() ở trên
+                // vừa dừng nó rồi (do đổi video/mở lại dialog...).
+                startRawAudioPreview(selectedAudioUploadUri);
             } else {
                 apiClient.fetchWemPreviewBytes(selectedWem.id, new ApiClient.Callback<byte[]>() {
                     @Override
@@ -873,7 +857,7 @@ public class MainActivity extends AppCompatActivity {
     private void updateInstallButtonEnabled() {
         boolean permissionOk = isPreScopedStorage || currentShizukuState == ShizukuPermissionHelper.State.GRANTED;
         boolean hasVideo = selectedVideoFromLibrary != null || selectedVideoUploadUri != null;
-        boolean hasWem = selectedWem != null || selectedLocalWemFile != null;
+        boolean hasWem = selectedWem != null || selectedAudioUploadUri != null;
         boolean enabled = !busy && permissionOk && hasWem && hasVideo;
         btnInstall.setEnabled(enabled);
         btnInstall.setAlpha(enabled ? 1f : 0.4f);
@@ -885,7 +869,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void onInstallClicked() {
-        if (selectedWem == null && selectedLocalWemFile == null) {
+        if (selectedWem == null && selectedAudioUploadUri == null) {
             Toast.makeText(this, "Chưa chọn nhạc", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -898,17 +882,21 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        if (selectedLocalWemFile != null) {
+        showInstallOverlay();
+        setInstallStage("Đang chuẩn bị...");
+        setBusyUi(true, "Đang cài mod...");
+
+        if (selectedAudioUploadUri != null) {
             // Nhạc tự tải lên -> build HOÀN TOÀN trên máy (không gọi
-            // /api/build của server) — xem LocalModBuilder.
-            setBusyUi(true, "Đang build trên máy (offline)...");
-            log("Bắt đầu build mod OFFLINE: nhạc=" + selectedLocalWemDisplayName);
+            // /api/build của server) — xem LocalModBuilder. Convert
+            // wav/mp3/ogg -> wem CHỈ diễn ra ở đây, lúc đã chắc chắn bấm cài.
+            log("Bắt đầu Cài mod OFFLINE: nhạc=" + selectedAudioUploadName);
             buildLocalAndInstall();
             return;
         }
 
-        setBusyUi(true, "Đang build trên server...");
         log("Bắt đầu build mod: nhạc=" + selectedWem.name);
+        setInstallStage("Đang build trên server");
 
         if (selectedVideoUploadUri != null) {
             new Thread(() -> {
@@ -918,6 +906,7 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception e) {
                     runOnUiThread(() -> {
                         setBusyUi(false, null);
+                        hideInstallOverlay();
                         log("✗ Lỗi đọc file video: " + e.getMessage());
                         Toast.makeText(MainActivity.this, "Lỗi đọc file video: " + e.getMessage(), Toast.LENGTH_LONG).show();
                     });
@@ -929,7 +918,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Nhánh build offline cho nhạc TỰ TẢI LÊN: đọc video (từ upload hoặc tải
+     * Nhánh build offline cho nhạc TỰ TẢI LÊN: convert wav/mp3/ogg -> wem
+     * (chỉ chạy TỚI ĐÂY, lúc đã bấm Cài mod), đọc video (từ upload hoặc tải
      * thẳng videoUrl public của item trong thư viện), tách audio khỏi video
      * bằng MediaExtractor/MediaMuxer (thay ffmpeg của server), rồi giao cho
      * LocalModBuilder tự lấy config Supabase + patch bnk + đóng gói zip.
@@ -937,12 +927,27 @@ public class MainActivity extends AppCompatActivity {
     private void buildLocalAndInstall() {
         new Thread(() -> {
             try {
+                runOnUiThread(() -> setInstallStage("Đang chuyển đổi tệp âm thanh"));
+                byte[] codebookBytes = readAssetBytes("packed_codebooks_aoTuV_603.bin");
+                File w2wWorkDir = new File(getCacheDir(), "w2w_work");
+                com.echohall.kgvn.w2w.WavToWemPipeline.Result convertResult =
+                        com.echohall.kgvn.w2w.WavToWemPipeline.convert(
+                                this, selectedAudioUploadUri, selectedAudioUploadName, w2wWorkDir,
+                                codebookBytes, msg -> runOnUiThread(() -> log(msg)));
+                selectedLocalWemFile = convertResult.wemFile;
+                selectedLocalWemDurationMs = convertResult.durationMs;
+                runOnUiThread(() -> log("✓ Convert xong: " + convertResult.wemFile.getName()
+                        + " — " + convertResult.durationMs + " ms."));
+
                 byte[] videoBytesRaw;
                 if (selectedVideoUploadUri != null) {
-                    runOnUiThread(() -> tvProgressLabel.setText("Đang đọc file video..."));
+                    runOnUiThread(() -> setInstallStage("Đang đọc video từ máy"));
                     videoBytesRaw = readAllBytesFromUri(selectedVideoUploadUri);
                 } else {
-                    runOnUiThread(() -> tvProgressLabel.setText("Đang tải video từ thư viện..."));
+                    runOnUiThread(() -> {
+                        setInstallStage("Đang tải video từ server");
+                        log("Đang tải video từ thư viện (mạng chậm có thể mất vài phút, app sẽ tự thử lại tối đa 3 lần nếu rớt mạng)...");
+                    });
                     videoBytesRaw = LocalModBuilder.httpGetBytes(selectedVideoFromLibrary.videoUrl);
                 }
 
@@ -951,7 +956,7 @@ public class MainActivity extends AppCompatActivity {
                 File rawVideoFile = com.echohall.kgvn.localbuild.VideoAudioStripper.bytesToTempFile(
                         videoBytesRaw, workDir, "raw_video_" + System.currentTimeMillis() + ".mp4");
 
-                runOnUiThread(() -> tvProgressLabel.setText("Đang tách audio khỏi video..."));
+                runOnUiThread(() -> setInstallStage("Đang xử lý video"));
                 com.echohall.kgvn.localbuild.VideoAudioStripper.Result stripResult =
                         com.echohall.kgvn.localbuild.VideoAudioStripper.stripAudio(
                                 rawVideoFile, workDir, msg -> runOnUiThread(() -> log(msg)));
@@ -962,11 +967,9 @@ public class MainActivity extends AppCompatActivity {
                 input.wemDurationMs = selectedLocalWemDurationMs;
                 input.videoBytes = finalVideoBytes;
 
+                runOnUiThread(() -> setInstallStage("Đang ghép file mod"));
                 LocalModBuilder.BuildOutput output = LocalModBuilder.build(input,
-                        msg -> runOnUiThread(() -> {
-                            tvProgressLabel.setText(msg);
-                            log(msg);
-                        }));
+                        msg -> runOnUiThread(() -> log(msg)));
 
                 try (FileOutputStream fos = new FileOutputStream(lastBuildZipFile)) {
                     fos.write(output.zipBytes);
@@ -977,11 +980,15 @@ public class MainActivity extends AppCompatActivity {
                     updateReinstallButtonVisibility();
                     installFromCachedZip("Đang cài vào game...", true);
                 });
-            } catch (Exception e) {
+            } catch (Throwable e) {
+                // Throwable: UnsatisfiedLinkError (thiếu libmwem.so / máy
+                // không phải arm64) là Error chứ không phải Exception.
+                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                 runOnUiThread(() -> {
                     setBusyUi(false, null);
-                    log("✗ Build offline thất bại: " + e.getMessage());
-                    Toast.makeText(MainActivity.this, "Build offline thất bại: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    hideInstallOverlay();
+                    log("✗ Cài mod offline thất bại: " + msg);
+                    Toast.makeText(MainActivity.this, "Cài mod thất bại: " + msg, Toast.LENGTH_LONG).show();
                 });
             }
         }).start();
@@ -996,6 +1003,7 @@ public class MainActivity extends AppCompatActivity {
                     fos.write(result.zipBytes);
                 } catch (Exception e) {
                     setBusyUi(false, null);
+                    hideInstallOverlay();
                     log("✗ Lỗi lưu file build: " + e.getMessage());
                     Toast.makeText(MainActivity.this, "Lỗi lưu file build: " + e.getMessage(), Toast.LENGTH_LONG).show();
                     return;
@@ -1007,6 +1015,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onError(String message) {
                 setBusyUi(false, null);
+                hideInstallOverlay();
                 log("✗ Build thất bại: " + message);
                 Toast.makeText(MainActivity.this, "Build thất bại: " + message, Toast.LENGTH_LONG).show();
             }
@@ -1022,6 +1031,8 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Chưa có quyền Shizuku", Toast.LENGTH_SHORT).show();
             return;
         }
+        showInstallOverlay();
+        setInstallStage("Đang cài lại bản gần nhất");
         setBusyUi(true, "Đang cài lại bản gần nhất...");
         log("Cài lại từ cache (không gọi server): " + lastBuildZipFile.getName());
         installFromCachedZip("Đang cài lại bản gần nhất...", false);
@@ -1036,6 +1047,7 @@ public class MainActivity extends AppCompatActivity {
                     int percent = total == 0 ? 0 : (int) (100.0 * current / total);
                     progressBar.setProgress(percent);
                     tvProgressLabel.setText("Đang cài (" + current + "/" + total + ")");
+                    setInstallStage("Đang cài vào game", percent, current + "/" + total + " file");
                     log("→ Cài: " + currentFileName);
                 });
             }
@@ -1049,6 +1061,11 @@ public class MainActivity extends AppCompatActivity {
             public void onStatus(String message) {
                 runOnUiThread(() -> {
                     tvProgressLabel.setText(message);
+                    // Toàn bộ onStatus() ở bước fix ISPDiff diễn ra TRƯỚC vòng
+                    // lặp copy từng file (xem ModInstaller.installFromZip) —
+                    // nên map chung về 1 nhãn đơn giản, chi tiết thật vẫn ghi
+                    // vào log() cho ai cần xem kỹ.
+                    setInstallStage("Đang làm sạch đường dẫn", 0, message);
                     log("… " + message);
                 });
             }
@@ -1057,6 +1074,7 @@ public class MainActivity extends AppCompatActivity {
             public void onDone(int installedCount) {
                 runOnUiThread(() -> {
                     setBusyUi(false, null);
+                    hideInstallOverlay();
                     log("✓ Hoàn tất — đã cài " + installedCount + " file.");
                     Toast.makeText(MainActivity.this, "Cài mod thành công (" + installedCount + " file)", Toast.LENGTH_LONG).show();
                     if (saveToRecent) saveCurrentSelectionToRecent();
@@ -1067,6 +1085,7 @@ public class MainActivity extends AppCompatActivity {
             public void onError(String message) {
                 runOnUiThread(() -> {
                     setBusyUi(false, null);
+                    hideInstallOverlay();
                     log("✗ Lỗi: " + message);
                     Toast.makeText(MainActivity.this, "Lỗi cài mod: " + message, Toast.LENGTH_LONG).show();
                 });
@@ -1240,12 +1259,73 @@ public class MainActivity extends AppCompatActivity {
         tvOverlayToggleState.setTextColor(overlayOn ? 0xFF80c8f8 : 0xFF386080);
     }
 
+    // ─────────────────── Overlay tiến trình "Cài mod" ───────────────────
+    // Hiện từ lúc bấm KÍCH HOẠT TRANG BỊ tới lúc xong hẳn (hoặc lỗi), che
+    // toàn bộ nội dung. Nhãn CHỈ dùng từ ngữ đơn giản, không mô tả kỹ thuật
+    // chi tiết bên trong (bnk, HIRC, sourceId...) — log chi tiết vẫn ghi
+    // riêng qua log() cho ai cần xem.
+
+    private void showInstallOverlay() {
+        installProgressOverlay.setVisibility(View.VISIBLE);
+        installOverlayProgressBar.setProgress(0);
+        tvInstallProgressDetail.setText("");
+    }
+
+    private void hideInstallOverlay() {
+        installProgressOverlay.setVisibility(View.GONE);
+    }
+
+    private void setInstallStage(String simpleLabel) {
+        tvInstallProgressLabel.setText(simpleLabel);
+    }
+
+    private void setInstallStage(String simpleLabel, int percent, String detail) {
+        tvInstallProgressLabel.setText(simpleLabel);
+        installOverlayProgressBar.setProgress(Math.max(0, Math.min(100, percent)));
+        tvInstallProgressDetail.setText(detail == null ? "" : detail);
+    }
+
     private void stopPreview() {
         try {
             if (previewVideo != null && previewVideo.isPlaying()) previewVideo.stopPlayback();
         } catch (Exception ignored) {
         }
         previewDecoder.stopAudio();
+        stopRawAudioPreview();
+    }
+
+    private void stopRawAudioPreview() {
+        if (rawAudioPreviewPlayer != null) {
+            try {
+                rawAudioPreviewPlayer.stop();
+            } catch (Exception ignored) {
+            }
+            rawAudioPreviewPlayer.release();
+            rawAudioPreviewPlayer = null;
+        }
+    }
+
+    /**
+     * Phát NGAY file audio gốc (wav/mp3/ogg) vừa chọn, không đợi convert wem.
+     * Người dùng bấm "TỰ TẢI NHẠC LÊN" là nghe được liền, dù convert phía sau
+     * có mất vài phút.
+     */
+    private void startRawAudioPreview(Uri uri) {
+        stopRawAudioPreview();
+        try {
+            android.media.MediaPlayer mp = new android.media.MediaPlayer();
+            mp.setDataSource(this, uri);
+            mp.setLooping(true);
+            mp.setOnPreparedListener(p -> p.start());
+            mp.setOnErrorListener((p, what, extra) -> {
+                log("⚠ Nghe thử (file gốc) lỗi (what=" + what + ")");
+                return true;
+            });
+            mp.prepareAsync();
+            rawAudioPreviewPlayer = mp;
+        } catch (Exception e) {
+            log("⚠ Không nghe thử được file gốc: " + e.getMessage());
+        }
     }
 
     // ─────────────────────────── Shizuku ───────────────────────────

@@ -106,20 +106,49 @@ public final class LocalModBuilder {
     }
 
     public static byte[] httpGetBytes(String urlStr) throws IOException {
-        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
-        conn.setConnectTimeout(30_000);
-        conn.setReadTimeout(30_000);
-        conn.setRequestMethod("GET");
-        try {
-            int code = conn.getResponseCode();
-            InputStream is = code == 200 ? conn.getInputStream() : conn.getErrorStream();
-            byte[] bytes = readAll(is);
-            if (code != 200) throw new IOException("HTTP " + code + " khi tải " + urlStr);
-            if (bytes.length == 0) throw new IOException("File tải về rỗng (0 byte): " + urlStr);
-            return bytes;
-        } finally {
-            conn.disconnect();
+        return httpGetBytesWithRetry(urlStr, 3);
+    }
+
+    /**
+     * Retry vài lần + timeout dài hơn + tắt keep-alive — mạng chậm/chập chờn
+     * (vài trăm KB/s hoặc kém hơn) rất dễ khiến server đóng kết nối giữa
+     * chừng ("unexpected end of stream") trước khi tải xong 1 file video vài
+     * chục MB. Đây là lỗi mạng, không phải lỗi patch/convert.
+     */
+    private static byte[] httpGetBytesWithRetry(String urlStr, int maxAttempts) throws IOException {
+        IOException lastError = null;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            HttpURLConnection conn = null;
+            try {
+                conn = (HttpURLConnection) new URL(urlStr).openConnection();
+                conn.setRequestProperty("Connection", "close"); // tránh tái dùng kết nối cũ đã bị server đóng
+                conn.setConnectTimeout(30_000);
+                conn.setReadTimeout(120_000); // mạng yếu cần thời gian đọc dài hơn nhiều so với 30s cũ
+                conn.setRequestMethod("GET");
+
+                int code = conn.getResponseCode();
+                InputStream is = code == 200 ? conn.getInputStream() : conn.getErrorStream();
+                byte[] bytes = readAll(is);
+                if (code != 200) throw new IOException("HTTP " + code + " khi tải " + urlStr);
+                if (bytes.length == 0) throw new IOException("File tải về rỗng (0 byte): " + urlStr);
+
+                long declaredLen = conn.getContentLengthLong();
+                if (declaredLen > 0 && bytes.length != declaredLen) {
+                    throw new IOException("Tải thiếu: nhận " + bytes.length + "/" + declaredLen + " byte (mạng rớt giữa chừng)");
+                }
+                return bytes;
+            } catch (IOException e) {
+                lastError = e;
+                if (attempt < maxAttempts) {
+                    // để nguyên log ở lớp gọi lo — ở đây chỉ chờ rồi thử lại
+                    try { Thread.sleep(2000L * attempt); } catch (InterruptedException ignored) {}
+                }
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
         }
+        throw new IOException("Tải " + urlStr + " thất bại sau " + maxAttempts + " lần thử (mạng quá chậm/không ổn định): "
+                + (lastError != null ? lastError.getMessage() : "?"), lastError);
     }
 
     private static byte[] readAll(InputStream is) throws IOException {
