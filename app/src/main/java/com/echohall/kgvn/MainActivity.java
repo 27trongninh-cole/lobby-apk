@@ -528,16 +528,30 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Tự tải nhạc lên: convert wav/mp3/ogg -> wem NGAY TRÊN MÁY (xem
-        // com.echohall.kgvn.w2w.WavToWemPipeline), không qua server.
+        // com.echohall.kgvn.w2w.WavToWemPipeline), không qua server. Tính
+        // năng này bị KHOÁ cho tới khi máy được admin duyệt (Device-based
+        // Manual License Activation — xem com.echohall.kgvn.license.DeviceLicense).
         com.google.android.material.card.MaterialCardView uploadRow = view.findViewById(R.id.btnPickerUpload);
+        TextView tvUploadBadge = view.findViewById(R.id.tvPickerUploadBadge);
         ((TextView) view.findViewById(R.id.tvPickerUploadTitle)).setText("TỰ TẢI NHẠC LÊN");
-        ((TextView) view.findViewById(R.id.tvPickerUploadSubtitle)).setText("Chọn file .wav / .mp3 / .ogg từ máy của bạn");
-        view.findViewById(R.id.tvPickerUploadBadge).setVisibility(View.GONE);
+        boolean licenseActivated = com.echohall.kgvn.license.DeviceLicense.isCachedActivated(this);
+        if (licenseActivated) {
+            ((TextView) view.findViewById(R.id.tvPickerUploadSubtitle)).setText("Chọn file .wav / .mp3 / .ogg từ máy của bạn");
+            tvUploadBadge.setVisibility(View.GONE);
+        } else {
+            ((TextView) view.findViewById(R.id.tvPickerUploadSubtitle)).setText("Cần kích hoạt theo máy trước khi dùng");
+            tvUploadBadge.setText("CẦN KÍCH HOẠT");
+            tvUploadBadge.setVisibility(View.VISIBLE);
+        }
         uploadRow.setAlpha(1f);
         uploadRow.setClickable(true);
         uploadRow.setOnClickListener(v -> {
-            dialog.dismiss();
-            pickAudioUploadLauncher.launch(new String[]{"audio/*"});
+            if (com.echohall.kgvn.license.DeviceLicense.isCachedActivated(this)) {
+                dialog.dismiss();
+                pickAudioUploadLauncher.launch(new String[]{"audio/*"});
+            } else {
+                openLicenseActivationDialog();
+            }
         });
 
         WemListAdapter adapter = new WemListAdapter(wemLibrary, selectedWem == null ? null : selectedWem.id,
@@ -649,6 +663,58 @@ public class MainActivity extends AppCompatActivity {
             while ((n = is.read(buf)) != -1) bos.write(buf, 0, n);
             return bos.toByteArray();
         }
+    }
+
+    /**
+     * Device-based Manual License Activation: hiện Device ID (ANDROID_ID) +
+     * nút "Kiểm tra kích hoạt" đọc bảng device_licenses trên Supabase. Admin
+     * duyệt bằng cách tự tay thêm dòng device_id vào bảng đó qua dashboard
+     * Supabase — app KHÔNG có đường tự ghi/tự kích hoạt.
+     */
+    private void openLicenseActivationDialog() {
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_license, null);
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.Theme_Echohall).setView(view).create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        String deviceId = com.echohall.kgvn.license.DeviceLicense.getDeviceId(this);
+        TextView tvDeviceId = view.findViewById(R.id.tvLicenseDeviceId);
+        TextView tvStatus = view.findViewById(R.id.tvLicenseStatus);
+        View btnCopy = view.findViewById(R.id.btnLicenseCopyId);
+        View btnCheck = view.findViewById(R.id.btnLicenseCheck);
+        View btnClose = view.findViewById(R.id.btnLicenseClose);
+
+        tvDeviceId.setText(deviceId);
+
+        if (com.echohall.kgvn.license.DeviceLicense.isCachedActivated(this)) {
+            tvStatus.setText("✓ Máy này đã được kích hoạt.");
+        }
+
+        btnCopy.setOnClickListener(v -> {
+            android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("Device ID", deviceId));
+            Toast.makeText(this, "Đã sao chép Device ID", Toast.LENGTH_SHORT).show();
+        });
+
+        btnCheck.setOnClickListener(v -> {
+            tvStatus.setText("Đang kiểm tra...");
+            btnCheck.setEnabled(false);
+            new Thread(() -> {
+                com.echohall.kgvn.license.DeviceLicense.CheckResult result =
+                        com.echohall.kgvn.license.DeviceLicense.checkActivationOnline(this);
+                runOnUiThread(() -> {
+                    btnCheck.setEnabled(true);
+                    tvStatus.setText(result.message);
+                    if (result.activated) {
+                        Toast.makeText(this, "Đã kích hoạt thành công!", Toast.LENGTH_LONG).show();
+                    }
+                });
+            }).start();
+        });
+
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
     }
 
     private void openVideoPickerDialog() {
