@@ -2,17 +2,24 @@ package com.echohall.kgvn.license;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Environment;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Files;
+
+import rikka.shizuku.Shizuku;
 
 import com.echohall.kgvn.AppConfig;
+import com.echohall.kgvn.ShizukuShell;
 
 /**
  * "Device-based Manual License Activation": mỗi thiết bị có 1 Device ID cố
@@ -28,9 +35,18 @@ import com.echohall.kgvn.AppConfig;
  * chưa có keystore cố định commit vào repo -> MỖI LẦN CI build lại là 1 chữ
  * ký khác -> nếu dùng ANDROID_ID, Device ID sẽ đổi liên tục mỗi lần cập
  * nhật app (dù không hề gỡ cài đặt), làm vô hiệu license đã duyệt. Dùng UUID
- * tự sinh + lưu SharedPreferences thay vì ANDROID_ID để tránh hẳn vấn đề
- * này — chỉ đổi khi gỡ hẳn app hoặc xoá dữ liệu app (đúng như kỳ vọng
- * "theo thiết bị", không bị ảnh hưởng bởi việc build lại APK).
+ * tự sinh thay vì ANDROID_ID để tránh hẳn vấn đề này.
+ *
+ * SỐNG SÓT QUA GỠ CÀI ĐẶT: UUID được lưu ở 2 nơi — (1) SharedPreferences
+ * (nhanh, nhưng bị xoá khi gỡ app/xoá dữ liệu app), VÀ (2) 1 file ẩn ở gốc
+ * bộ nhớ ngoài (/sdcard/.melo_device_id — KHÔNG nằm trong thư mục riêng của
+ * app nên KHÔNG bị xoá khi gỡ cài đặt). Lần cài lại sau, app đọc lại đúng
+ * UUID cũ từ file này thay vì sinh UUID mới -> Device ID đã được admin duyệt
+ * vẫn dùng tiếp được, không cần xin duyệt lại. Ghi/đọc file này thử theo thứ
+ * tự: file thường trước (đủ dùng trên Android cũ / pre-scoped-storage), rồi
+ * mới tới qua Shizuku shell (cần đã cấp quyền Shizuku — vốn đã là điều kiện
+ * bắt buộc để dùng tính năng cài mod chính của app trên Android mới rồi, nên
+ * không phải yêu cầu thêm gì mới).
  *
  * Kích hoạt xong -> cache local vĩnh viễn (không hết hạn, không cần check
  * mạng lại mỗi lần mở app) — đúng yêu cầu "kích hoạt 1 lần dùng vĩnh viễn".
@@ -41,22 +57,87 @@ public final class DeviceLicense {
     private static final String KEY_ACTIVATED = "activated";
     private static final String KEY_ACTIVATED_FOR_DEVICE_ID = "activated_for_device_id";
     private static final String KEY_GENERATED_DEVICE_ID = "generated_device_id";
+    private static final String PERSIST_FILENAME = ".melo_device_id";
     private static final int TIMEOUT_MS = 20_000;
 
     private DeviceLicense() {}
 
+    private static File persistFile() {
+        return new File(Environment.getExternalStorageDirectory(), PERSIST_FILENAME);
+    }
+
+    private static boolean isShizukuReady() {
+        try {
+            return Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
+        } catch (Throwable t) {
+            return false; // Shizuku chưa cài / binder chưa sẵn sàng -> coi như không dùng được
+        }
+    }
+
+    /** Đọc UUID đã lưu ngoài sandbox app (sống sót qua gỡ cài đặt) — null nếu chưa có lần nào lưu. */
+    private static String readPersistedId() {
+        File f = persistFile();
+        try {
+            if (f.exists()) {
+                String content = new String(Files.readAllBytes(f.toPath()), "UTF-8").trim();
+                if (!content.isEmpty()) return content;
+            }
+        } catch (Exception ignored) {
+            // Không đọc được bằng file thường (thiếu quyền trên Android mới) -> thử Shizuku bên dưới.
+        }
+
+        if (isShizukuReady()) {
+            try {
+                ShizukuShell.Result r = ShizukuShell.exec(new String[]{"cat", f.getAbsolutePath()});
+                if (r.isSuccess()) {
+                    String content = r.stdout.trim();
+                    if (!content.isEmpty()) return content;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
+    }
+
+    /** Lưu UUID ra ngoài sandbox app — best-effort, không throw nếu thất bại (vẫn còn cache SharedPreferences dự phòng). */
+    private static void persistId(String id) {
+        File f = persistFile();
+        try {
+            Files.write(f.toPath(), id.getBytes("UTF-8"));
+            return;
+        } catch (Exception ignored) {
+            // Thử tiếp qua Shizuku bên dưới.
+        }
+
+        if (isShizukuReady()) {
+            try {
+                ShizukuShell.exec(new String[]{"sh", "-c", "echo " + id + " > " + f.getAbsolutePath()});
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     /**
-     * UUID tự sinh 1 LẦN DUY NHẤT cho máy này, lưu vĩnh viễn trong
-     * SharedPreferences — không phụ thuộc chữ ký ký APK, không đổi khi cập
-     * nhật/build lại app, chỉ đổi khi gỡ cài đặt hẳn hoặc xoá dữ liệu app.
+     * UUID cho máy này. Thứ tự ưu tiên:
+     *  1) Cache SharedPreferences (nhanh — cùng 1 lần cài, gọi lại không tốn công đọc file/Shizuku).
+     *  2) File bền ngoài sandbox (/sdcard/.melo_device_id) — có nếu app từng
+     *     cài trên máy này trước đây (dù đã gỡ) -> DÙNG LẠI, không sinh mới.
+     *  3) Sinh UUID mới hoàn toàn (lần đầu tiên trên máy này) + lưu cả 2 nơi.
      */
     public static String getDeviceId(Context ctx) {
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        String existing = prefs.getString(KEY_GENERATED_DEVICE_ID, null);
-        if (existing != null && !existing.isEmpty()) return existing;
+        String cached = prefs.getString(KEY_GENERATED_DEVICE_ID, null);
+        if (cached != null && !cached.isEmpty()) return cached;
+
+        String persisted = readPersistedId();
+        if (persisted != null) {
+            prefs.edit().putString(KEY_GENERATED_DEVICE_ID, persisted).apply();
+            return persisted;
+        }
 
         String fresh = java.util.UUID.randomUUID().toString();
         prefs.edit().putString(KEY_GENERATED_DEVICE_ID, fresh).apply();
+        persistId(fresh);
         return fresh;
     }
 
