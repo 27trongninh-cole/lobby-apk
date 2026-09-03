@@ -17,8 +17,8 @@ public final class AppConfig {
     // TODO: điền link project Supabase + anon public key ở đây (Settings ->
     // API trong dashboard Supabase). Anon key chỉ có quyền đọc theo RLS policy
     // đã cấp cho bảng bnk_settings/lobby_profiles — KHÔNG phải service key.
-    public static final String SUPABASE_URL = "";        // vd: https://xxxxxxxx.supabase.co
-    public static final String SUPABASE_ANON_KEY = "";   // anon public key (không phải service_role key)
+    public static final String SUPABASE_URL = "https://rwzrfcoslstiwndivznu.supabase.co";        // vd: https://xxxxxxxx.supabase.co
+    public static final String SUPABASE_ANON_KEY = "sb_publishable_leXAB0M5UDz8uwYiwVy8Fg_qhRmwK-b";   // anon public key (không phải service_role key)
 
     private AppConfig() {}
 }
