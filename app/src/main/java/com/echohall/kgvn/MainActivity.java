@@ -87,32 +87,66 @@ public class MainActivity extends AppCompatActivity {
     private boolean overlayOn = true;
     private PreviewDecoder previewDecoder;
 
-    // Thanh playback nhạc dưới khung preview.
+    // Thanh playback nhạc dưới khung preview. Dùng CHUNG cho cả 2 nguồn: nhạc
+    // thư viện/.wem (qua previewDecoder) VÀ nhạc tự tải lên chưa convert
+    // (qua rawAudioPreviewPlayer, MediaPlayer thường) — rawPreviewMode xác
+    // định polling loop bên dưới đang hỏi trạng thái nguồn nào.
     private View layoutPlaybackBar;
     private ImageView btnPlaybackToggle;
     private SeekBar seekPlayback;
     private TextView tvPlaybackTime;
     private final Handler playbackPollHandler = new Handler(Looper.getMainLooper());
     private boolean isDraggingSeek = false;
+    private boolean rawPreviewMode = false;
     private final Runnable playbackPollRunnable = new Runnable() {
         @Override
         public void run() {
-            previewDecoder.queryPlaybackState(state -> {
-                if (!state.hasSrc) {
-                    layoutPlaybackBar.setVisibility(View.GONE);
-                } else {
-                    layoutPlaybackBar.setVisibility(View.VISIBLE);
-                    btnPlaybackToggle.setImageResource(state.playing ? R.drawable.ic_pause : R.drawable.ic_play);
-                    tvPlaybackTime.setText(formatTime(state.currentTimeSec) + " / " + formatTime(state.durationSec));
-                    if (!isDraggingSeek && state.durationSec > 0) {
-                        int progress = (int) (1000 * state.currentTimeSec / state.durationSec);
-                        seekPlayback.setProgress(Math.max(0, Math.min(1000, progress)));
+            if (rawPreviewMode) {
+                pollRawAudioPlaybackState();
+            } else {
+                previewDecoder.queryPlaybackState(state -> {
+                    if (!state.hasSrc) {
+                        layoutPlaybackBar.setVisibility(View.GONE);
+                    } else {
+                        layoutPlaybackBar.setVisibility(View.VISIBLE);
+                        btnPlaybackToggle.setImageResource(state.playing ? R.drawable.ic_pause : R.drawable.ic_play);
+                        tvPlaybackTime.setText(formatTime(state.currentTimeSec) + " / " + formatTime(state.durationSec));
+                        if (!isDraggingSeek && state.durationSec > 0) {
+                            int progress = (int) (1000 * state.currentTimeSec / state.durationSec);
+                            seekPlayback.setProgress(Math.max(0, Math.min(1000, progress)));
+                        }
                     }
-                }
-            });
+                });
+            }
             playbackPollHandler.postDelayed(this, 300);
         }
     };
+
+    private void pollRawAudioPlaybackState() {
+        android.media.MediaPlayer mp = rawAudioPreviewPlayer;
+        if (mp == null) {
+            layoutPlaybackBar.setVisibility(View.GONE);
+            return;
+        }
+        try {
+            int durMs = mp.getDuration(); // -1 nếu chưa prepare xong (prepareAsync)
+            int curMs = mp.getCurrentPosition();
+            boolean playing = mp.isPlaying();
+            layoutPlaybackBar.setVisibility(View.VISIBLE);
+            btnPlaybackToggle.setImageResource(playing ? R.drawable.ic_pause : R.drawable.ic_play);
+            double durationSec = durMs > 0 ? durMs / 1000.0 : 0;
+            double currentSec = curMs / 1000.0;
+            tvPlaybackTime.setText(formatTime(currentSec) + " / " + formatTime(durationSec));
+            if (!isDraggingSeek && durationSec > 0) {
+                int progress = (int) (1000 * currentSec / durationSec);
+                seekPlayback.setProgress(Math.max(0, Math.min(1000, progress)));
+            }
+        } catch (IllegalStateException e) {
+            // MediaPlayer đang ở trạng thái chuyển tiếp (vừa release/chưa
+            // prepare xong) — bỏ qua tick này, tick sau sẽ ổn.
+            layoutPlaybackBar.setVisibility(View.GONE);
+        }
+    }
 
     private void startPlaybackPolling() {
         playbackPollHandler.removeCallbacks(playbackPollRunnable);
@@ -257,7 +291,18 @@ public class MainActivity extends AppCompatActivity {
         seekPlayback = findViewById(R.id.seekPlayback);
         tvPlaybackTime = findViewById(R.id.tvPlaybackTime);
 
-        btnPlaybackToggle.setOnClickListener(v -> previewDecoder.togglePlayPause());
+        btnPlaybackToggle.setOnClickListener(v -> {
+            if (rawPreviewMode) {
+                android.media.MediaPlayer mp = rawAudioPreviewPlayer;
+                if (mp == null) return;
+                try {
+                    if (mp.isPlaying()) mp.pause(); else mp.start();
+                } catch (IllegalStateException ignored) {
+                }
+            } else {
+                previewDecoder.togglePlayPause();
+            }
+        });
         seekPlayback.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -271,12 +316,24 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 isDraggingSeek = false;
-                previewDecoder.queryPlaybackState(state -> {
-                    if (state.durationSec > 0) {
-                        double seekSeconds = state.durationSec * seekBar.getProgress() / 1000.0;
-                        previewDecoder.seekTo(seekSeconds);
+                if (rawPreviewMode) {
+                    android.media.MediaPlayer mp = rawAudioPreviewPlayer;
+                    if (mp == null) return;
+                    try {
+                        int durMs = mp.getDuration();
+                        if (durMs > 0) {
+                            mp.seekTo((int) (durMs * seekBar.getProgress() / 1000.0));
+                        }
+                    } catch (IllegalStateException ignored) {
                     }
-                });
+                } else {
+                    previewDecoder.queryPlaybackState(state -> {
+                        if (state.durationSec > 0) {
+                            double seekSeconds = state.durationSec * seekBar.getProgress() / 1000.0;
+                            previewDecoder.seekTo(seekSeconds);
+                        }
+                    });
+                }
             }
         });
 
@@ -570,6 +627,8 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onPlayPreview(ApiClient.WemItem item, ImageView playButton) {
                         playButton.setAlpha(0.35f);
+                        rawPreviewMode = false;
+                        stopRawAudioPreview();
                         apiClient.fetchWemPreviewBytes(item.id, new ApiClient.Callback<byte[]>() {
                             @Override
                             public void onSuccess(byte[] result) {
@@ -884,6 +943,7 @@ public class MainActivity extends AppCompatActivity {
                 // vừa dừng nó rồi (do đổi video/mở lại dialog...).
                 startRawAudioPreview(selectedAudioUploadUri);
             } else {
+                rawPreviewMode = false;
                 apiClient.fetchWemPreviewBytes(selectedWem.id, new ApiClient.Callback<byte[]>() {
                     @Override
                     public void onSuccess(byte[] result) {
@@ -1378,6 +1438,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void startRawAudioPreview(Uri uri) {
         stopRawAudioPreview();
+        rawPreviewMode = true;
         try {
             android.media.MediaPlayer mp = new android.media.MediaPlayer();
             mp.setDataSource(this, uri);

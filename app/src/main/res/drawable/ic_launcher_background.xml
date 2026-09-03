@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Nền đặc 1 màu, khớp tông nền tối (hud_surface_1) của app — logo màu
+     xanh/trắng cần nền tối, KHÔNG có xanh dương cạnh tranh, để nổi bật rõ
+     thay vì gradient xanh dương cũ (2 xanh chồng nhau làm mờ chi tiết). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <gradient
-        android:type="radial"
-        android:gradientRadius="180dp"
-        android:centerX="0.5"
-        android:centerY="0.5"
-        android:startColor="#386080"
-        android:endColor="#0b1422" />
+    <solid android:color="#0b1120" />
 </shape>
