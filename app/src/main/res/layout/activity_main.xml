@@ -451,6 +451,7 @@
             app:layout_constraintTop_toBottomOf="@id/btnInstall"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btnUninstallAll"
+            app:layout_constraintHorizontal_chainStyle="spread_inside"
             app:layout_constraintWidth_percent="0.475">
 
             <TextView
@@ -599,6 +600,17 @@
                 android:textSize="9sp"
                 android:gravity="center"
                 android:layout_marginTop="8dp" />
+
+            <TextView
+                android:id="@+id/tvInstallStepEta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.03"
+                android:textColor="@color/hud_accent"
+                android:textSize="9.5sp"
+                android:gravity="center"
+                android:layout_marginTop="4dp" />
 
         </LinearLayout>
 

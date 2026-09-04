@@ -183,6 +183,28 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvInstallProgressLabel;
     private ProgressBar installOverlayProgressBar;
     private TextView tvInstallProgressDetail;
+    private TextView tvInstallStepEta;
+
+    // ─── Theo dõi tiến trình cài mod theo TỪNG BƯỚC + ước tính thời gian còn
+    // lại. Ước tính dựa trên thời gian TRUNG BÌNH các bước đã xong trong lần
+    // chạy này (không có số liệu lịch sử cố định — máy khác nhau tốc độ khác
+    // nhau, convert nhạc trên máy yếu có thể mất vài phút, máy khoẻ vài giây,
+    // nên trung bình động theo thực tế đang chạy là hợp lý nhất). Bước nào
+    // có tiến trình thật (copy từng file) thì ưu tiên ước tính chính xác hơn
+    // qua installLiveEtaMs, còn lại dùng trung bình. ───
+    private String[] installSteps = new String[0];
+    private int installStepIndex = 0; // 1-based, 0 = chưa bắt đầu bước nào
+    private long installStepStartMs = 0;
+    private final java.util.List<Long> installCompletedStepDurationsMs = new java.util.ArrayList<>();
+    private long installLiveEtaMs = -1; // ước tính chính xác hơn cho bước hiện tại (vd copy file theo tốc độ thực đo được), -1 = không có
+    private final Handler installTickHandler = new Handler(Looper.getMainLooper());
+    private final Runnable installTickRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateInstallStepEtaText();
+            installTickHandler.postDelayed(this, 1000);
+        }
+    };
 
     private StringBuilder logBuffer = new StringBuilder();
 
@@ -280,6 +302,7 @@ public class MainActivity extends AppCompatActivity {
         tvInstallProgressLabel = findViewById(R.id.tvInstallProgressLabel);
         installOverlayProgressBar = findViewById(R.id.installOverlayProgressBar);
         tvInstallProgressDetail = findViewById(R.id.tvInstallProgressDetail);
+        tvInstallStepEta = findViewById(R.id.tvInstallStepEta);
         btnReinstallLast = findViewById(R.id.btnReinstallLast);
         btnUninstallAll = findViewById(R.id.btnUninstallAll);
 
@@ -1008,21 +1031,23 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        showInstallOverlay();
-        setInstallStage("Đang chuẩn bị...");
         setBusyUi(true, "Đang cài mod...");
 
         if (selectedAudioUploadUri != null) {
             // Nhạc tự tải lên -> build HOÀN TOÀN trên máy (không gọi
             // /api/build của server) — xem LocalModBuilder. Convert
             // wav/mp3/ogg -> wem CHỈ diễn ra ở đây, lúc đã chắc chắn bấm cài.
+            showInstallOverlay(LOCAL_INSTALL_STEPS);
+            advanceInstallStep(LOCAL_INSTALL_STEPS[0]);
             log("Bắt đầu Cài mod OFFLINE: nhạc=" + selectedAudioUploadName);
             buildLocalAndInstall();
             return;
         }
 
+        showInstallOverlay(SERVER_INSTALL_STEPS);
+        advanceInstallStep(SERVER_INSTALL_STEPS[0]);
         log("Bắt đầu build mod: nhạc=" + selectedWem.name);
-        setInstallStage("Đang build trên server");
+        advanceInstallStep(SERVER_INSTALL_STEPS[1]);
 
         if (selectedVideoUploadUri != null) {
             new Thread(() -> {
@@ -1053,7 +1078,7 @@ public class MainActivity extends AppCompatActivity {
     private void buildLocalAndInstall() {
         new Thread(() -> {
             try {
-                runOnUiThread(() -> setInstallStage("Đang chuyển đổi tệp âm thanh"));
+                runOnUiThread(() -> advanceInstallStep(LOCAL_INSTALL_STEPS[1])); // Đang chuyển đổi tệp âm thanh
                 byte[] codebookBytes = readAssetBytes("packed_codebooks_aoTuV_603.bin");
                 File w2wWorkDir = new File(getCacheDir(), "w2w_work");
                 com.echohall.kgvn.w2w.WavToWemPipeline.Result convertResult =
@@ -1067,11 +1092,11 @@ public class MainActivity extends AppCompatActivity {
 
                 byte[] videoBytesRaw;
                 if (selectedVideoUploadUri != null) {
-                    runOnUiThread(() -> setInstallStage("Đang đọc video từ máy"));
+                    runOnUiThread(() -> advanceInstallStep(LOCAL_INSTALL_STEPS[2])); // Đang lấy video
                     videoBytesRaw = readAllBytesFromUri(selectedVideoUploadUri);
                 } else {
                     runOnUiThread(() -> {
-                        setInstallStage("Đang tải video từ server");
+                        advanceInstallStep(LOCAL_INSTALL_STEPS[2]);
                         log("Đang tải video từ thư viện (mạng chậm có thể mất vài phút, app sẽ tự thử lại tối đa 3 lần nếu rớt mạng)...");
                     });
                     videoBytesRaw = LocalModBuilder.httpGetBytes(selectedVideoFromLibrary.videoUrl);
@@ -1082,7 +1107,7 @@ public class MainActivity extends AppCompatActivity {
                 File rawVideoFile = com.echohall.kgvn.localbuild.VideoAudioStripper.bytesToTempFile(
                         videoBytesRaw, workDir, "raw_video_" + System.currentTimeMillis() + ".mp4");
 
-                runOnUiThread(() -> setInstallStage("Đang xử lý video"));
+                runOnUiThread(() -> advanceInstallStep(LOCAL_INSTALL_STEPS[3])); // Đang xử lý video
                 com.echohall.kgvn.localbuild.VideoAudioStripper.Result stripResult =
                         com.echohall.kgvn.localbuild.VideoAudioStripper.stripAudio(
                                 rawVideoFile, workDir, msg -> runOnUiThread(() -> log(msg)));
@@ -1093,7 +1118,7 @@ public class MainActivity extends AppCompatActivity {
                 input.wemDurationMs = selectedLocalWemDurationMs;
                 input.videoBytes = finalVideoBytes;
 
-                runOnUiThread(() -> setInstallStage("Đang ghép file mod"));
+                runOnUiThread(() -> advanceInstallStep(LOCAL_INSTALL_STEPS[4])); // Đang ghép file mod
                 LocalModBuilder.BuildOutput output = LocalModBuilder.build(input,
                         msg -> runOnUiThread(() -> log(msg)));
 
@@ -1157,8 +1182,8 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Chưa có quyền Shizuku", Toast.LENGTH_SHORT).show();
             return;
         }
-        showInstallOverlay();
-        setInstallStage("Đang cài lại bản gần nhất");
+        showInstallOverlay(REINSTALL_STEPS);
+        advanceInstallStep(REINSTALL_STEPS[0]);
         setBusyUi(true, "Đang cài lại bản gần nhất...");
         log("Cài lại từ cache (không gọi server): " + lastBuildZipFile.getName());
         installFromCachedZip("Đang cài lại bản gần nhất...", false);
@@ -1166,6 +1191,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void installFromCachedZip(String initialStatusLabel, boolean saveToRecent) {
         tvProgressLabel.setText(initialStatusLabel);
+        final boolean[] enteredCleanupStep = {false};
+        final boolean[] enteredCopyStep = {false};
+        final long[] copyStepStartMs = {0};
         modInstaller.installFromZip(Uri.fromFile(lastBuildZipFile), new ModInstaller.ProgressListener() {
             @Override
             public void onProgress(int current, int total, String currentFileName) {
@@ -1173,7 +1201,20 @@ public class MainActivity extends AppCompatActivity {
                     int percent = total == 0 ? 0 : (int) (100.0 * current / total);
                     progressBar.setProgress(percent);
                     tvProgressLabel.setText("Đang cài (" + current + "/" + total + ")");
-                    setInstallStage("Đang cài vào game", percent, current + "/" + total + " file");
+                    if (!enteredCopyStep[0]) {
+                        enteredCopyStep[0] = true;
+                        copyStepStartMs[0] = System.currentTimeMillis();
+                        advanceInstallStep("Đang cài vào game");
+                    }
+                    // Tốc độ copy thực đo được (giây/file) -> ước tính chính
+                    // xác hơn cho bước này thay vì dùng trung bình chung.
+                    Long liveEta = null;
+                    if (current > 0 && total > 0) {
+                        long elapsed = System.currentTimeMillis() - copyStepStartMs[0];
+                        double msPerFile = elapsed / (double) current;
+                        liveEta = (long) (msPerFile * (total - current));
+                    }
+                    setInstallSubProgress(percent, current + "/" + total + " file", liveEta);
                     log("→ Cài: " + currentFileName);
                 });
             }
@@ -1189,9 +1230,13 @@ public class MainActivity extends AppCompatActivity {
                     tvProgressLabel.setText(message);
                     // Toàn bộ onStatus() ở bước fix ISPDiff diễn ra TRƯỚC vòng
                     // lặp copy từng file (xem ModInstaller.installFromZip) —
-                    // nên map chung về 1 nhãn đơn giản, chi tiết thật vẫn ghi
+                    // nên map chung về 1 bước đơn giản, chi tiết thật vẫn ghi
                     // vào log() cho ai cần xem kỹ.
-                    setInstallStage("Đang làm sạch đường dẫn", 0, message);
+                    if (!enteredCleanupStep[0]) {
+                        enteredCleanupStep[0] = true;
+                        advanceInstallStep("Đang làm sạch đường dẫn");
+                    }
+                    setInstallSubProgress(0, message, null);
                     log("… " + message);
                 });
             }
@@ -1389,26 +1434,117 @@ public class MainActivity extends AppCompatActivity {
     // Hiện từ lúc bấm KÍCH HOẠT TRANG BỊ tới lúc xong hẳn (hoặc lỗi), che
     // toàn bộ nội dung. Nhãn CHỈ dùng từ ngữ đơn giản, không mô tả kỹ thuật
     // chi tiết bên trong (bnk, HIRC, sourceId...) — log chi tiết vẫn ghi
-    // riêng qua log() cho ai cần xem.
+    // riêng qua log() cho ai cần xem. Progress bar + "Bước A/B — Còn ..."
+    // cập nhật theo TỪNG BƯỚC thực tế của flow đang chạy (offline/server/cài
+    // lại — mỗi flow số bước khác nhau, xem các mảng *_STEPS bên dưới).
 
-    private void showInstallOverlay() {
+    private static final String[] LOCAL_INSTALL_STEPS = {
+            "Đang chuẩn bị...",
+            "Đang chuyển đổi tệp âm thanh",
+            "Đang lấy video",
+            "Đang xử lý video",
+            "Đang ghép file mod",
+            "Đang làm sạch đường dẫn",
+            "Đang cài vào game"
+    };
+    private static final String[] SERVER_INSTALL_STEPS = {
+            "Đang chuẩn bị...",
+            "Đang build trên server",
+            "Đang làm sạch đường dẫn",
+            "Đang cài vào game"
+    };
+    private static final String[] REINSTALL_STEPS = {
+            "Đang chuẩn bị...",
+            "Đang làm sạch đường dẫn",
+            "Đang cài vào game"
+    };
+
+    private void showInstallOverlay(String[] steps) {
+        installSteps = steps;
+        installStepIndex = 0;
+        installCompletedStepDurationsMs.clear();
+        installLiveEtaMs = -1;
         installProgressOverlay.setVisibility(View.VISIBLE);
         installOverlayProgressBar.setProgress(0);
         tvInstallProgressDetail.setText("");
+        tvInstallStepEta.setText("");
+        installTickHandler.removeCallbacks(installTickRunnable);
+        installTickHandler.post(installTickRunnable);
     }
 
     private void hideInstallOverlay() {
+        installTickHandler.removeCallbacks(installTickRunnable);
         installProgressOverlay.setVisibility(View.GONE);
     }
 
-    private void setInstallStage(String simpleLabel) {
-        tvInstallProgressLabel.setText(simpleLabel);
+    /** Chuyển sang bước KẾ TIẾP trong mảng steps hiện tại (tìm theo đúng thứ tự đã khai, không tìm theo tên). */
+    private void advanceInstallStep(String label) {
+        long now = System.currentTimeMillis();
+        if (installStepIndex > 0) {
+            installCompletedStepDurationsMs.add(now - installStepStartMs);
+        }
+        installStepIndex++;
+        installStepStartMs = now;
+        installLiveEtaMs = -1;
+        tvInstallProgressLabel.setText(label);
+        tvInstallProgressDetail.setText("");
+        int total = installSteps.length;
+        int baselinePercent = total <= 1 ? 0 : (int) (100.0 * (installStepIndex - 1) / total);
+        installOverlayProgressBar.setProgress(Math.max(0, Math.min(100, baselinePercent)));
+        updateInstallStepEtaText();
     }
 
-    private void setInstallStage(String simpleLabel, int percent, String detail) {
-        tvInstallProgressLabel.setText(simpleLabel);
+    /** Cập nhật tiến trình PHỤ bên trong bước hiện tại (không đổi label/số bước) — vd copy từng file, % cụ thể. */
+    private void setInstallSubProgress(int percent, String detail, Long liveEtaMsOverride) {
         installOverlayProgressBar.setProgress(Math.max(0, Math.min(100, percent)));
         tvInstallProgressDetail.setText(detail == null ? "" : detail);
+        installLiveEtaMs = liveEtaMsOverride == null ? -1 : liveEtaMsOverride;
+        updateInstallStepEtaText();
+    }
+
+    private void updateInstallStepEtaText() {
+        int total = installSteps.length;
+        if (total == 0 || installStepIndex == 0) {
+            tvInstallStepEta.setText("");
+            return;
+        }
+        String stepCounter = "Bước " + installStepIndex + "/" + total;
+
+        long now = System.currentTimeMillis();
+        long currentStepElapsed = now - installStepStartMs;
+        int stepsAfterCurrent = total - installStepIndex;
+
+        Long remainingMs;
+        if (installLiveEtaMs >= 0) {
+            // Ước tính chính xác cho bước hiện tại (vd tốc độ copy file thực đo được).
+            long avgFuture = averageCompletedStepDurationMs();
+            remainingMs = installLiveEtaMs + (avgFuture > 0 ? avgFuture * stepsAfterCurrent : 0);
+        } else if (!installCompletedStepDurationsMs.isEmpty()) {
+            long avg = averageCompletedStepDurationMs();
+            remainingMs = Math.max(0, avg - currentStepElapsed) + avg * stepsAfterCurrent;
+        } else {
+            remainingMs = null; // chưa có bước nào xong -> chưa đủ dữ liệu để ước tính
+        }
+
+        if (remainingMs == null) {
+            tvInstallStepEta.setText(stepCounter);
+        } else {
+            tvInstallStepEta.setText(stepCounter + " — Còn " + formatEta(remainingMs));
+        }
+    }
+
+    private long averageCompletedStepDurationMs() {
+        if (installCompletedStepDurationsMs.isEmpty()) return 0;
+        long sum = 0;
+        for (long d : installCompletedStepDurationsMs) sum += d;
+        return sum / installCompletedStepDurationsMs.size();
+    }
+
+    private String formatEta(long ms) {
+        long totalSeconds = Math.max(0, ms / 1000);
+        long minutes = totalSeconds / 60;
+        long seconds = totalSeconds % 60;
+        return minutes + " phút " + seconds + " giây";
     }
 
     private void stopPreview() {
